@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+.websim.json
+.websim-manifest.json
+.websim-cli.json
+coverage/
+*.tsbuildinfo
+.artifacts/
