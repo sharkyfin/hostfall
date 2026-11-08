@@ -30,29 +30,59 @@ namespace Hostfall.Player
         public event System.Action<bool> DashFeedback;
         public float Pitch { get; private set; }
         public float LookSensitivity { get; set; } = 1;
+        public bool IsSprinting => input != null && input.Sprint.IsPressed() && planarVelocity.sqrMagnitude > 1f;
         public Vector3 Eye => transform.position + Vector3.up * 1.64f + transform.forward * .2f;
         public Quaternion ViewRotation => Quaternion.Euler(Pitch, transform.eulerAngles.y, 0);
         public void Initialize(FacilityInput bindings, ControlState state,ActionState actionState=null)
         {
             input = bindings; controls = state; controller = GetComponent<CharacterController>(); actions=actionState??new ActionState();
         }
-        public PlayerStateData Capture(bool thirdPerson) => new()
+        public PlayerStateData Capture(bool thirdPerson)
         {
-            position = transform.position, yaw = transform.eulerAngles.y, pitch = Pitch, targetPitch = targetPitch,
-            planarVelocity = planarVelocity, verticalSpeed = verticalSpeed, thirdPerson = thirdPerson,
-            dashRemaining=dashRemaining,dashDirection=dashDirection,airDashUsed=airDashUsed
-        };
+            var weapon = GetComponent<PlayerWeapon>();
+            return new PlayerStateData
+            {
+                position = transform.position, yaw = transform.eulerAngles.y, pitch = Pitch, targetPitch = targetPitch,
+                planarVelocity = planarVelocity, verticalSpeed = verticalSpeed, thirdPerson = thirdPerson,
+                dashRemaining=dashRemaining,dashDirection=dashDirection,airDashUsed=airDashUsed,
+                hasWeapon = weapon != null && weapon.HasWeapon
+            };
+        }
         public void Restore(PlayerStateData state)
         {
             controller.enabled = false; transform.SetPositionAndRotation(state.position, Quaternion.Euler(0, state.yaw, 0)); controller.enabled = true;
             Pitch = state.pitch; targetPitch = state.targetPitch; planarVelocity = state.planarVelocity; verticalSpeed = state.verticalSpeed;
             pitchVelocity = 0; jumpBuffer = 0; coyote = 0;
             dashRemaining=state.dashRemaining; dashDirection=state.dashDirection; airDashUsed=state.airDashUsed;
+            var weapon = GetComponent<PlayerWeapon>();
+            if (weapon != null)
+            {
+                if (state.hasWeapon) weapon.Equip();
+                else weapon.Unequip();
+            }
         }
         public void ReturnToPost()
         {
             controller.enabled = false; transform.position = new Vector3(-2.65f, .08f, -1.7f);
             controller.enabled = true; planarVelocity = Vector3.zero; verticalSpeed = 0; dashRemaining=0; airDashUsed=false;
+        }
+        public void RecoverToSafety()
+        {
+            controller.enabled = false;
+            Vector3 pos = transform.position;
+            Vector3 target;
+            if (pos.z >= 37f && pos.x >= -10f && pos.x <= 10f) target = new Vector3(0, 0.1f, 40f);
+            else if (pos.x >= 7f && pos.z >= 19f) target = new Vector3(10.75f, 0.1f, 25f);
+            else if (pos.x <= -7f && pos.z >= 17f) target = new Vector3(-16.5f, 0.1f, 20f);
+            else if (pos.z >= 14f) target = new Vector3(0, 0.1f, 17f);
+            else target = new Vector3(-2.65f, .08f, -1.7f);
+
+            transform.position = target;
+            controller.enabled = true;
+            planarVelocity = Vector3.zero;
+            verticalSpeed = 0;
+            dashRemaining = 0;
+            airDashUsed = false;
         }
         public bool TryDash(Vector3 direction)
         {
@@ -61,9 +91,15 @@ namespace Hostfall.Player
             if(dashDirection.sqrMagnitude<.01f) dashDirection=transform.forward;
             dashRemaining=.18f; airDashUsed=!controller.isGrounded; return true;
         }
+        public void AddPitchKick(float kick) => targetPitch = Mathf.Clamp(targetPitch + kick, -82, 82);
         private void Update()
         {
             if (input == null || !controls.CanExplore) { planarVelocity = Vector3.zero; jumpBuffer = 0; return; }
+            if (Cursor.lockState != CursorLockMode.Locked || Cursor.visible)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
             float dt = Time.deltaTime;
             Vector2 look = input.Look.ReadValue<Vector2>();
             transform.Rotate(0, look.x * mouseSensitivity * LookSensitivity, 0, Space.World);
@@ -88,6 +124,13 @@ namespace Hostfall.Player
             verticalSpeed = Mathf.Max(verticalSpeed + gravity * dt, -35);
             var collision = controller.Move((planarVelocity + Vector3.up * verticalSpeed) * dt);
             if ((collision & CollisionFlags.Above) != 0 && verticalSpeed > 0) verticalSpeed = 0;
+
+            // Out-of-bounds safety failsafe: recover if player ever drops into the void or escapes boundaries
+            Vector3 p = transform.position;
+            if (p.y < -2.2f || p.y > 16.0f || p.x < -32.0f || p.x > 22.0f || p.z < -14.0f || p.z > 72.0f)
+            {
+                RecoverToSafety();
+            }
         }
     }
 }

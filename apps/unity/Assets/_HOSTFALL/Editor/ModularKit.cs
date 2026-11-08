@@ -38,8 +38,50 @@ namespace Hostfall.Editor
                 var renderers=child.GetComponentsInChildren<Renderer>(); var bounds=renderers[0].bounds; foreach(var renderer in renderers.Skip(1)) bounds.Encapsulate(renderer.bounds);
                 child.transform.localPosition-=new Vector3(bounds.center.x,bounds.min.y,bounds.center.z);
                 sizes[root.name]=bounds.size;
-                if(root.name.Contains("Crate")||root.name=="Prop_Computer"||root.name.StartsWith("Wall")||root.name.StartsWith("Column"))
-                { var collider=root.AddComponent<BoxCollider>(); collider.center=new Vector3(0,bounds.size.y/2,0); collider.size=bounds.size; }
+                if (root.name.StartsWith("Door_Frame"))
+                {
+                    // Split into left jamb, right jamb, top lintel so central doorway remains open
+                    float postW = bounds.size.x * 0.18f;
+                    float postOffset = (bounds.size.x - postW) / 2f;
+                    float lintelH = bounds.size.y * 0.18f;
+
+                    var leftCol = root.AddComponent<BoxCollider>();
+                    leftCol.center = new Vector3(-postOffset, bounds.size.y / 2, 0);
+                    leftCol.size = new Vector3(postW, bounds.size.y, bounds.size.z);
+
+                    var rightCol = root.AddComponent<BoxCollider>();
+                    rightCol.center = new Vector3(postOffset, bounds.size.y / 2, 0);
+                    rightCol.size = new Vector3(postW, bounds.size.y, bounds.size.z);
+
+                    var topCol = root.AddComponent<BoxCollider>();
+                    topCol.center = new Vector3(0, bounds.size.y - lintelH / 2, 0);
+                    topCol.size = new Vector3(bounds.size.x, lintelH, bounds.size.z);
+                }
+                else if (root.name.Contains("Stairs"))
+                {
+                    // Tilted ramp collider so CharacterController can walk up smoothly
+                    float H = bounds.size.y;
+                    float D = bounds.size.z;
+                    float alpha = Mathf.Atan2(H, D) * Mathf.Rad2Deg;
+                    float slopeLen = Mathf.Sqrt(H * H + D * D);
+
+                    var rampObj = new GameObject("RampCollider");
+                    rampObj.transform.SetParent(root.transform, false);
+                    rampObj.transform.localPosition = new Vector3(0, H / 2, 0);
+                    rampObj.transform.localRotation = Quaternion.Euler(-alpha, 0, 0);
+
+                    var rampCol = rampObj.AddComponent<BoxCollider>();
+                    rampCol.center = Vector3.zero;
+                    rampCol.size = new Vector3(bounds.size.x, 0.15f, slopeLen);
+                }
+                else if (root.name.Contains("Crate") || root.name == "Prop_Computer" || root.name.StartsWith("Wall") ||
+                         root.name.StartsWith("Column") || root.name.Contains("Rails") || root.name.Contains("Barrel") ||
+                         root.name.StartsWith("Platform"))
+                {
+                    var collider = root.AddComponent<BoxCollider>();
+                    collider.center = new Vector3(0, bounds.size.y / 2, 0);
+                    collider.size = bounds.size;
+                }
                 var prefab=PrefabUtility.SaveAsPrefabAsset(root,Output+"/"+root.name+".prefab");
                 modules.Add(new FacilityModule { id=root.name,category=root.name.StartsWith("Prop")?"Equipment":"Structure",prefab=prefab,size=bounds.size });
                 Debug.Log("HOSTFALL kit "+root.name+" "+bounds.size); UnityEngine.Object.DestroyImmediate(root);
@@ -54,6 +96,27 @@ namespace Hostfall.Editor
             string path=FacilityBuilder.Content+"/Materials/Kit "+name+".mat";
             var material=AssetDatabase.LoadAssetAtPath<Material>(path);
             if(material==null) { material=new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(material,path); }
+            if (name == "M_Glass" || name.Contains("Glass"))
+            {
+                material.SetFloat("_Surface", 1);
+                material.SetFloat("_Blend", 0);
+                material.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                material.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                material.SetFloat("_ZWrite", 0);
+                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                material.SetOverrideTag("RenderType", "Transparent");
+                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                material.SetColor("_BaseColor", new Color(0.16f, 0.36f, 0.44f, 0.62f));
+                material.SetFloat("_Smoothness", 0.92f);
+                material.SetFloat("_Metallic", 0.25f);
+                material.EnableKeyword("_EMISSION");
+                material.SetColor("_EmissionColor", new Color(0.04f, 0.10f, 0.12f));
+                material.SetFloat("_EnvironmentReflections", 1);
+                material.enableInstancing = true;
+                EditorUtility.SetDirty(material);
+                materials.Add(name, material);
+                return material;
+            }
             material.SetFloat("_Surface",0); material.SetFloat("_ZWrite",1); material.SetFloat("_SrcBlend",1); material.SetFloat("_DstBlend",0); material.renderQueue=2000; material.SetOverrideTag("RenderType","Opaque");
             material.DisableKeyword("_SURFACE_TYPE_TRANSPARENT"); material.SetFloat("_Smoothness",.35f);
             string trim=name.Contains("Trim_01")?"T_Trim_01":name.Contains("Trim_02")?"T_Trim_02":name.Contains("Trim_03")?"T_Trim_03":"";
@@ -82,7 +145,7 @@ namespace Hostfall.Editor
             var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(Output+"/"+name+".prefab");
             var go=(GameObject)PrefabUtility.InstantiatePrefab(prefab); go.transform.SetParent(parent,false); go.transform.localPosition=position; go.transform.localRotation=Quaternion.Euler(0,yaw,0);
             Vector3 size=sizes[name]; go.transform.localScale=new Vector3(size.x>.001f?target.x/size.x:1,size.y>.001f?target.y/size.y:1,size.z>.001f?target.z/size.z:1);
-            if(solid && go.GetComponent<Collider>()==null)
+            if(solid && !name.Contains("Door_Frame") && !name.Contains("Frame") && go.GetComponent<Collider>()==null)
             {
                 var shape=go.AddComponent<BoxCollider>(); shape.center=new Vector3(0,size.y/2,0); shape.size=size;
             }

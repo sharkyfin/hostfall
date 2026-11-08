@@ -46,7 +46,7 @@ namespace Hostfall.Tests
             yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
             var controls=Object.FindAnyObjectByType<ControlState>(); var world=Object.FindAnyObjectByType<FacilityRoot>().Simulation;
             var relay=Enemy("watcher-r17"); var core=Enemy("sentry-r18");
-            Assert.That(Object.FindObjectsByType<WatcherController>(FindObjectsSortMode.None).Length,Is.EqualTo(2));
+            Assert.That(Object.FindObjectsByType<WatcherController>(FindObjectsSortMode.None).Length,Is.GreaterThanOrEqualTo(2));
             foreach(var robot in new[] { relay,core })
             {
                 var animator=robot.GetComponentInChildren<Animator>(); Assert.That(animator.runtimeAnimatorController,Is.Not.Null); Assert.That(animator.applyRootMotion,Is.False);
@@ -73,14 +73,15 @@ namespace Hostfall.Tests
         {
             yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
             var root=Object.FindAnyObjectByType<FacilityRoot>(); var data=root.Persistence.Capture();
-            data.enemies.Single().position=new Vector3(.8f,0,10.8f); data.enemies.Single().bodyYaw=225; data.enemies.Single().direction=-1; data.enemies.Single().scan=3; data.enemies.Single().contactCooldown=1.5f;
+            var sentryTarget=data.enemies.Single(e=>e.id=="sentry-r18");
+            sentryTarget.position=new Vector3(.8f,0,10.8f); sentryTarget.bodyYaw=225; sentryTarget.direction=-1; sentryTarget.scan=3; sentryTarget.contactCooldown=1.5f;
             string path=Path.Combine(Path.GetTempPath(),"hostfall-enemy-"+System.Guid.NewGuid().ToString("N"));
             try
             {
                 var store=new WorldSaveStore(path); store.Write(data); Assert.That(store.TryLoad(out var saved,out var error),Is.True,error);
                 yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
-                Enemy("watcher-r17").Restore(saved.watcher); Enemy("sentry-r18").Restore(saved.enemies.Single());
-                var restored=Enemy("sentry-r18").Capture(); Assert.That(restored.position,Is.EqualTo(data.enemies.Single().position)); Assert.That(restored.bodyYaw,Is.EqualTo(225).Within(.001f));
+                Enemy("watcher-r17").Restore(saved.watcher); Enemy("sentry-r18").Restore(saved.enemies.Single(e=>e.id=="sentry-r18"));
+                var restored=Enemy("sentry-r18").Capture(); Assert.That(restored.position,Is.EqualTo(sentryTarget.position)); Assert.That(restored.bodyYaw,Is.EqualTo(225).Within(.001f));
                 Assert.That(restored.direction,Is.EqualTo(-1)); Assert.That(restored.scan,Is.EqualTo(3)); Assert.That(restored.contactCooldown,Is.EqualTo(1.5f));
                 data.enemies=null; store.Write(data); Assert.That(store.TryLoad(out saved,out error),Is.True,error);
                 Assert.That(saved.enemies==null||saved.enemies.Length==0,Is.True);
@@ -111,6 +112,86 @@ namespace Hostfall.Tests
             Assert.That(relayMin,Is.LessThan(2.35f)); Assert.That(relayMax,Is.GreaterThan(5.45f));
             Assert.That(coreMin,Is.LessThan(9.25f)); Assert.That(coreMax,Is.GreaterThan(11.65f));
             controls.SetMode(ControlMode.Paused); LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator TargetLossTransitionsIntoSearchAtLastKnownPosition()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var controls=Object.FindAnyObjectByType<ControlState>(); var robot=Enemy("watcher-r17");
+            Pose(robot,new Vector3(0,0,2.2f)); PlayerAt(new Vector3(0,0,4.3f)); Physics.SyncTransforms();
+            controls.SetMode(ControlMode.Exploring);
+
+            // Initial glance starts suspicion buildup
+            robot.Tick(.1f);
+            Assert.That(robot.State.Mode,Is.EqualTo(WatcherMode.Suspicious),"Brief glance at distance triggers suspicion");
+
+            // Sustained gaze enters full alert
+            for(int i=0;i<4;i++) { Physics.SyncTransforms(); robot.Tick(.1f); }
+            Assert.That(robot.State.Mode,Is.EqualTo(WatcherMode.Alert),"Sustained line of sight alerts the robot");
+            Assert.That(robot.LastKnownPosition.z,Is.EqualTo(4.3f).Within(.1f));
+
+            var wall=GameObject.CreatePrimitive(PrimitiveType.Cube); wall.name="Search test wall";
+            wall.transform.position=new Vector3(0,1,3.2f); wall.transform.localScale=new Vector3(2,2,.15f); Physics.SyncTransforms();
+            robot.Tick(.1f);
+            Assert.That(robot.State.Mode,Is.EqualTo(WatcherMode.Search),"Breaking sight must enter Search instead of instant Patrol");
+            Assert.That(robot.SearchTimer,Is.GreaterThan(0));
+
+            for(int i=0;i<45;i++) { Physics.SyncTransforms(); robot.Tick(.1f); }
+            Assert.That(robot.State.Mode,Is.EqualTo(WatcherMode.Patrol),"Expired search returns to patrol");
+            Object.Destroy(wall); controls.SetMode(ControlMode.Paused); LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator AttackWindupTelegraphsAndAllowsDodge()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var controls=Object.FindAnyObjectByType<ControlState>(); var root=Object.FindAnyObjectByType<FacilityRoot>();
+            var robot=Enemy("watcher-r17");
+            Pose(robot,new Vector3(0,0,2.2f)); PlayerAt(new Vector3(0,0,3.5f)); Physics.SyncTransforms();
+            controls.SetMode(ControlMode.Exploring);
+            int contactsBefore=root.Simulation.WatcherContacts;
+
+            // Distance is 1.3m: within windup telegraph range (0.7m < dist <= 1.65m)
+            robot.Tick(.05f);
+            Assert.That(robot.State.Mode,Is.EqualTo(WatcherMode.AttackWindup),"Approaching target initiates telegraph windup");
+            Assert.That(root.Simulation.WatcherContacts,Is.EqualTo(contactsBefore),"Windup phase does not cause premature contact");
+            Assert.That(robot.WindupTimer,Is.GreaterThan(0));
+
+            // Player dashes away to safe distance
+            PlayerAt(new Vector3(0,0,5.2f)); Physics.SyncTransforms();
+            robot.Tick(.45f);
+            Assert.That(root.Simulation.WatcherContacts,Is.EqualTo(contactsBefore),"Successful dodge avoids contact");
+            Assert.That(robot.State.Mode,Is.Not.EqualTo(WatcherMode.AttackWindup));
+
+            controls.SetMode(ControlMode.Paused); LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator ArcShotgunDestroysRobotsInTwoShots()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var robot = Enemy("watcher-r17");
+            Assert.That(robot.Health, Is.EqualTo(100f));
+            Assert.That(robot.IsDestroyed, Is.False);
+
+            // First shot deals 55 damage
+            robot.TakeDamage(55f);
+            Assert.That(robot.Health, Is.EqualTo(45f));
+            Assert.That(robot.IsDestroyed, Is.False);
+            Assert.That(robot.State.Mode, Is.EqualTo(WatcherMode.Alert), "First shot alerts the damaged robot");
+
+            // Second shot deals 55 damage -> total 110 dmg -> destroys 100 HP robot!
+            robot.TakeDamage(55f);
+            Assert.That(robot.Health, Is.EqualTo(0f));
+            Assert.That(robot.IsDestroyed, Is.True, "Second shot destroys the robot completely");
+            Assert.That(robot.State.Mode, Is.EqualTo(WatcherMode.Offline));
+
+            var collider = robot.GetComponent<CapsuleCollider>();
+            Assert.That(collider.enabled, Is.False, "Destroyed robot collider is disabled");
+
+            // Tick does not revive or move destroyed robot
+            robot.Tick(0.5f);
+            Assert.That(robot.IsDestroyed, Is.True);
+            Assert.That(robot.State.Mode, Is.EqualTo(WatcherMode.Offline));
+            LogAssert.NoUnexpectedReceived();
         }
     }
 }

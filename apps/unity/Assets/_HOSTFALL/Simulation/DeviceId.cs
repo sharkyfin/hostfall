@@ -1,17 +1,18 @@
 namespace Hostfall.Simulation
 {
     // Stable IDs shared with the future native core; never use scene names as IDs.
-    public enum DeviceId : uint { Ws07 = 7, Edge01 = 1, Core01 = 99 }
+    public enum DeviceId : uint { Ws07 = 7, Edge01 = 1, Core01 = 99, Data01 = 101, Pwr01 = 201, Qnt01 = 301 }
     public static class DeviceNames
     {
         public static string Hostname(this DeviceId id) => id switch
         {
             DeviceId.Ws07 => "ws07", DeviceId.Edge01 => "edge01", DeviceId.Core01 => "core01",
+            DeviceId.Data01 => "data01", DeviceId.Pwr01 => "pwr01", DeviceId.Qnt01 => "qnt01",
             _ => throw new System.ArgumentOutOfRangeException(nameof(id))
         };
         public static bool TryParse(string value, out DeviceId id)
         {
-            foreach (var candidate in new[] { DeviceId.Ws07, DeviceId.Edge01, DeviceId.Core01 })
+            foreach (var candidate in new[] { DeviceId.Ws07, DeviceId.Edge01, DeviceId.Core01, DeviceId.Data01, DeviceId.Pwr01, DeviceId.Qnt01 })
                 if (candidate.Hostname() == value.ToLowerInvariant()) { id = candidate; return true; }
             id = default; return false;
         }

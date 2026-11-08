@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e5aff776cca5c4aa64fa1802f2a1c74, type: 3}
   m_Name: NightShift
   m_EditorClassIdentifier: 
-  completionMessage: "Данные участка у вас. Маршрут до серверной открыт."
+  completionMessage: "Комплекс полностью разблокирован. Служебный контур доступен."
   objectives:
   - condition: 2
     device: 7
@@ -22,4 +22,13 @@ MonoBehaviour:
     description: "Прорвитесь к терминалу шлюза в проходе."
   - condition: 2
     device: 99
-    description: "Доберитесь до терминала серверной и заберите карту участка."
+    description: "Доберитесь до терминала серверной и отключите защитные ворота."
+  - condition: 2
+    device: 101
+    description: "Пройдите в Сектор 02 и разблокируйте энергоцентр на терминале DATA-01."
+  - condition: 2
+    device: 201
+    description: "Проникните в Сектор 03 и активируйте подстанцию на распределителе PWR-01."
+  - condition: 2
+    device: 301
+    description: "Доберитесь до квантового релея QNT-01 в Секторе 04 и откройте служебный контур."

@@ -91,14 +91,28 @@ namespace Hostfall.Core
             scanner.Initialize(player, input, controls, brain.GetComponent<UnityEngine.Camera>());
             scanner.PromptChanged += ui.SetInteractionPrompt;
             foreach (var computer in computers) computer.Initialize(Simulation, ui.OpenTerminal);
-            door.Initialize(Simulation); power.Initialize(Simulation);
+            door.Initialize(Simulation);
+            foreach (var d in FindObjectsByType<FacilityDoor>(FindObjectsSortMode.None))
+                if (d != door) d.Initialize(Simulation);
+            power.Initialize(Simulation);
             watcher.Initialize(Simulation, player, controls);
+            var allWatchers = FindObjectsByType<WatcherController>(FindObjectsSortMode.None);
+            foreach (var w in allWatchers)
+            {
+                if (w != watcher && !enemies.Contains(w))
+                    w.Initialize(Simulation, player, controls);
+            }
             foreach(var enemy in enemies) enemy.Initialize(Simulation,player,controls);
             foreach (var note in documents) note.Initialize(fieldUI);
-            persistence.Initialize(Simulation, Field, player, rig, door, watcher, controls, input, store, saved, notice, Valid,enemies);
+            var nonPlayerWatchers = allWatchers.Where(w => w != watcher).ToArray();
+            persistence.Initialize(Simulation, Field, player, rig, door, watcher, controls, input, store, saved, notice, Valid, nonPlayerWatchers.Length > 0 ? nonPlayerWatchers : enemies);
             ui.Initialize(Simulation, controls, input, Field, fieldUI, persistence);
+            foreach (var dtc in FindObjectsByType<DoorTerminalConsole>(FindObjectsSortMode.None))
+                dtc.Initialize(ui, Simulation);
+            var weapon = player.GetComponent<PlayerWeapon>() ?? player.gameObject.AddComponent<PlayerWeapon>();
+            weapon.Initialize(player, input, controls, ui);
             var actionController=gameObject.AddComponent<FacilityActionController>();
-            actionController.Initialize(Simulation,player,controls,input,ui,new[] { watcher }.Concat(enemies).ToArray());
+            actionController.Initialize(Simulation,player,controls,input,ui,allWatchers);
         }
         private void OnDestroy() { Field?.Dispose(); if (scanner != null && ui != null) scanner.PromptChanged -= ui.SetInteractionPrompt; }
     }

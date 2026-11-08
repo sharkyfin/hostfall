@@ -16,8 +16,8 @@ namespace Hostfall.Devices
         private ComputerScreen physicalDisplay;
         private Action<DeviceId> open;
         public DeviceId Id => deviceId;
-        public bool ShouldConnect=>simulation!=null&&simulation.Terminals.CanRun(deviceId)&&!simulation.Terminals.IsComplete(deviceId);
-        public string Prompt => !simulation[deviceId].Powered?"НЕТ ПИТАНИЯ":!simulation.Terminals.CanRun(deviceId)?"Узел закрыт · завершите предыдущее подключение":ShouldConnect?"Терминал · подключение при приближении":"[E] Просмотреть сеанс";
+        public bool ShouldConnect => simulation != null && simulation.Terminals.CanRun(deviceId) && !simulation.Terminals.IsComplete(deviceId);
+        public string Prompt => !simulation[deviceId].Powered ? "НЕТ ПИТАНИЯ" : !simulation.Terminals.CanRun(deviceId) ? "Узел закрыт · завершите предыдущее подключение" : !simulation.Terminals.IsComplete(deviceId) ? "[E] Подключиться к терминалу" : "[E] Просмотреть сеанс";
         public void Configure(DeviceId id, Renderer display, Material on, Material off, GameObject lines) { deviceId = id; screen = display; online = on; offline = off; readouts = lines; }
         public void Initialize(FacilitySimulation model, Action<DeviceId> openTerminal)
         {

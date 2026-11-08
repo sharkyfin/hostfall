@@ -17,6 +17,18 @@ MonoBehaviour:
     category: Structure
     prefab: {fileID: 1223005867674032904, guid: 9845bbd6d52374f4e9127b3906e76358, type: 3}
     size: {x: 0.60000014, y: 0.020000651, z: 4}
+  - id: Column_Large_Straight
+    category: Structure
+    prefab: {fileID: 7558721301842364433, guid: a1f8a736ae4144d4b9bd03d7c52a9026, type: 3}
+    size: {x: 1.3964721, y: 10.00323, z: 1.9621735}
+  - id: Column_MetalSupport
+    category: Structure
+    prefab: {fileID: 1857000454362646148, guid: 9dd0e5187ea1f401594c773ae8292f9b, type: 3}
+    size: {x: 0.956629, y: 0.04400879, z: 4}
+  - id: Column_Pipes
+    category: Structure
+    prefab: {fileID: 6298649301259567152, guid: 0cea88412ebeb4e1e9760ff5a2944fcf, type: 3}
+    size: {x: 0.8746282, y: 5, z: 0.8746282}
   - id: Column_Round
     category: Structure
     prefab: {fileID: 8703089942511251990, guid: cfca8c1c62b0e41bf96574f22dea34bd, type: 3}
@@ -25,6 +37,14 @@ MonoBehaviour:
     category: Structure
     prefab: {fileID: 5293208624792292111, guid: ae3adf363206f47e6be9972ec04e1f90, type: 3}
     size: {x: 4.85345, y: 5.0134254, z: 0.5068493}
+  - id: Door_Frame_SquareTall
+    category: Structure
+    prefab: {fileID: 9151197561630467061, guid: c7598d7b13e6245b4843790eee0ef603, type: 3}
+    size: {x: 4.843747, y: 5.0134254, z: 0.5068493}
+  - id: Platform_3Plates
+    category: Structure
+    prefab: {fileID: 3214539541088370526, guid: 3f2485b91a4554adc9e3d2a7dac2f3da, type: 3}
+    size: {x: 4.0000024, y: 0, z: 4.000001}
   - id: Platform_CenterPlate
     category: Structure
     prefab: {fileID: 1632207901012966546, guid: d8abffdc324bd49ac929153e131aa83d, type: 3}
@@ -33,6 +53,30 @@ MonoBehaviour:
     category: Structure
     prefab: {fileID: 5286971823575780302, guid: 3372ecbf85e7443ca8369ba10f8754a0, type: 3}
     size: {x: 4.0000024, y: 0, z: 4.000001}
+  - id: Platform_Metal
+    category: Structure
+    prefab: {fileID: 6266100474334056923, guid: b99b7349a60f1457d9135c87f94abd86, type: 3}
+    size: {x: 4, y: 0, z: 4}
+  - id: Platform_Rails_4
+    category: Structure
+    prefab: {fileID: 3932591516134808073, guid: 0a33eb01e4d664373a0c7ea17b1e99fc, type: 3}
+    size: {x: 2.358422, y: 2.716824, z: 3.8025913}
+  - id: Platform_Rails_4Wide
+    category: Structure
+    prefab: {fileID: 3921044500381329844, guid: d7be1d85e61284ca696edb6b7c4fd7c6, type: 3}
+    size: {x: 4.2466955, y: 2.716824, z: 3.8025913}
+  - id: Platform_Stairs_2
+    category: Structure
+    prefab: {fileID: 528547259042855428, guid: 98f5f6c6b2ac54c6aae1819d5c8ed00b, type: 3}
+    size: {x: 2.0001478, y: 1.0085578, z: 2.0727117}
+  - id: Platform_Stairs_4
+    category: Structure
+    prefab: {fileID: 2578948243901360776, guid: ddc7549278e1a472b870725e1bb8a70e, type: 3}
+    size: {x: 2.0001478, y: 2.0081577, z: 4.0827117}
+  - id: Prop_Barrel_Large
+    category: Equipment
+    prefab: {fileID: 8399268139495820612, guid: 6f06b1b3b2be54aba8e96d2a50596ef1, type: 3}
+    size: {x: 0.50784415, y: 1.1026047, z: 0.5319891}
   - id: Prop_Cable_1
     category: Equipment
     prefab: {fileID: 7400700286452360759, guid: 051e82bddba5341048f6f279183eefed, type: 3}
@@ -57,6 +101,14 @@ MonoBehaviour:
     category: Equipment
     prefab: {fileID: 3478017749567384736, guid: 0be6533d15bdb4bf792b27c0e784f2b9, type: 3}
     size: {x: 1.7217056, y: 0.18190534, z: 0.44531938}
+  - id: Prop_Light_Wide
+    category: Equipment
+    prefab: {fileID: 9166914749261901612, guid: c99b8cc0a3cdd4ca3906055aa7d77c3c, type: 3}
+    size: {x: 2.6404886, y: 0.18190534, z: 0.44531938}
+  - id: Prop_Vent_Big
+    category: Equipment
+    prefab: {fileID: 3465843673202142003, guid: 393d1d6d125434a65a54399b24adf53a, type: 3}
+    size: {x: 2.0003748, y: 0.06878673, z: 0.97640955}
   - id: Prop_Vent_Wide
     category: Equipment
     prefab: {fileID: 7281995531151508850, guid: 86b4bcf7d40d345ee98f383747a1e7dd, type: 3}
@@ -69,11 +121,23 @@ MonoBehaviour:
     category: Structure
     prefab: {fileID: 4324465848007951654, guid: 6ac4de6317eb04ae0a72d0f751dd448c, type: 3}
     size: {x: 0.3838755, y: 2, z: 4.0000005}
+  - id: TopCables_Straight_Hanging
+    category: Structure
+    prefab: {fileID: 2911186281701806861, guid: f0d62f28252aa4a9fa0d7445cee30778, type: 3}
+    size: {x: 0.44205022, y: 4.9431963, z: 4.0000005}
   - id: WallAstra_Straight
     category: Structure
     prefab: {fileID: 2682191300797997926, guid: 2c8342bd0efff40a7b9f2a34178c8d8c, type: 3}
+    size: {x: 1.2092685, y: 3.027961, z: 4.000001}
+  - id: WallAstra_Straight_Divided
+    category: Structure
+    prefab: {fileID: 449297295558880815, guid: e84a357113b5144f68d9b00691841798, type: 3}
     size: {x: 1.2092685, y: 3.027961, z: 4.000001}
   - id: WallBand_Straight
     category: Structure
     prefab: {fileID: 7629572738876422490, guid: 8449a8cc559cf48e08df8f62c5556332, type: 3}
     size: {x: 0.20750129, y: 3.0000007, z: 4.0000005}
+  - id: WallWindow_Straight
+    category: Structure
+    prefab: {fileID: 7231181854465956271, guid: b892a429f61a347ab97aac07a44fa0ec, type: 3}
+    size: {x: 0.3200761, y: 3.1865523, z: 4.000001}

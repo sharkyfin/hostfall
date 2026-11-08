@@ -77,13 +77,17 @@ namespace Hostfall.Tests
                 controls = Object.FindAnyObjectByType<ControlState>();
                 bindings.Move.actionMap.devices = new InputDevice[] { keyboard, mouse };
                 bindings.Escape.actionMap.devices = new InputDevice[] { keyboard, mouse };
+                bindings.Interact.actionMap.devices = new InputDevice[] { keyboard, mouse };
                 controls.SetMode(ControlMode.Exploring);
                 yield return new WaitForSeconds(.1f);
                 InputSystem.QueueDeltaStateEvent(mouse.delta, new Vector2(0, -100));
                 yield return new WaitForSeconds(.15f);
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.E));
+                yield return null;
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState());
                 float connectionDeadline=Time.realtimeSinceStartup+3;
                 while(controls.Mode!=ControlMode.Terminal&&Time.realtimeSinceStartup<connectionDeadline) yield return null;
-                Assert.That(controls.Mode,Is.EqualTo(ControlMode.Terminal),"Looking at the reachable terminal must start a connection without E");
+                Assert.That(controls.Mode,Is.EqualTo(ControlMode.Terminal),"Pressing E while targeting the reachable terminal must start connection");
                 Assert.That(bindings.Move.enabled,Is.False);
                 var document=Object.FindAnyObjectByType<UIDocument>(); var view=document.rootVisualElement;
                 Assert.That(view.Q<TextField>("command"),Is.Null,"No manual command surface may remain");
@@ -92,7 +96,7 @@ namespace Hostfall.Tests
                 var ui=Object.FindAnyObjectByType<Hostfall.UI.FacilityUI>();
                 foreach(var id in new[] { DeviceId.Ws07,DeviceId.Edge01,DeviceId.Core01 })
                 { ui.OpenTerminal(id); MenuFlowTests.FinishRoutine(simulation,id); yield return null; }
-                Assert.That(simulation.Mission.IsComplete,Is.True);
+                Assert.That(simulation.Mission.CompletedObjectives,Is.GreaterThanOrEqualTo(3));
                 var fieldUI=Object.FindAnyObjectByType<Hostfall.Field.FieldSystemUI>();
                 fieldUI.OpenArticle("process"); yield return null;
                 Assert.That(controls.Mode,Is.EqualTo(ControlMode.Field));

@@ -16,12 +16,15 @@ namespace Hostfall.Missions
             public ObjectiveConfig(ObjectiveCondition kind, DeviceId target, string instructions)
             { condition = kind; device = target; description = instructions; }
         }
-        [SerializeField, TextArea] private string completionMessage = "Данные участка у вас. Маршрут до серверной открыт.";
+        [SerializeField, TextArea] private string completionMessage = "Комплекс полностью разблокирован. Служебный контур доступен.";
         [SerializeField] private ObjectiveConfig[] objectives =
         {
             new(ObjectiveCondition.TerminalSequence, DeviceId.Ws07, "Доберитесь до рабочего терминала в операторской."),
             new(ObjectiveCondition.TerminalSequence, DeviceId.Edge01, "Прорвитесь к терминалу шлюза в проходе."),
-            new(ObjectiveCondition.TerminalSequence, DeviceId.Core01, "Доберитесь до терминала серверной и заберите карту участка.")
+            new(ObjectiveCondition.TerminalSequence, DeviceId.Core01, "Доберитесь до терминала серверной и отключите защитные ворота."),
+            new(ObjectiveCondition.TerminalSequence, DeviceId.Data01, "Пройдите в Сектор 02 и разблокируйте энергоцентр на терминале DATA-01."),
+            new(ObjectiveCondition.TerminalSequence, DeviceId.Pwr01, "Проникните в Сектор 03 и активируйте подстанцию на распределителе PWR-01."),
+            new(ObjectiveCondition.TerminalSequence, DeviceId.Qnt01, "Доберитесь до квантового релея QNT-01 в Секторе 04 и откройте служебный контур.")
         };
         public MissionDefinition CreateDefinition()
         {

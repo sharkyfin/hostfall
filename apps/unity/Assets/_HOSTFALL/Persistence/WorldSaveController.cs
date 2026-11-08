@@ -48,7 +48,7 @@ namespace Hostfall.Persistence
             {
                 player.Restore(loaded.player); cameraRig.RestoreMode(loaded.player.thirdPerson);
                 door.Restore(loaded.door); watcher.Restore(loaded.watcher);
-                if(loaded.enemies!=null) foreach(var saved in loaded.enemies) enemies.Single(e=>e.Id==saved.id).Restore(saved);
+                if(loaded.enemies!=null) foreach(var saved in loaded.enemies) { var match=enemies.FirstOrDefault(e=>e.Id==saved.id); if(match!=null) match.Restore(saved); }
             }
             model.StateChanged += Dirty; field.Changed += Dirty; controls.Changed += ModeChanged;
             nextPositionSave = Time.unscaledTime + 15;

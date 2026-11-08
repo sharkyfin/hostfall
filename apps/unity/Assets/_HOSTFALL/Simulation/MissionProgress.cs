@@ -33,6 +33,13 @@ namespace Hostfall.Simulation
             new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Ws07,"Доберитесь до рабочего терминала в операторской."),
             new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Edge01,"Прорвитесь к терминалу шлюза в проходе."),
             new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Core01,"Доберитесь до терминала серверной и заберите карту участка."));
+        public static MissionDefinition FacilityCampaign => new("Комплекс полностью разблокирован. Служебный контур доступен.",
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Ws07,"Доберитесь до рабочего терминала в операторской."),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Edge01,"Прорвитесь к терминалу шлюза в проходе."),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Core01,"Доберитесь до терминала серверной и отключите защитные ворота."),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Data01,"Пройдите в Сектор 02 и разблокируйте энергоцентр на терминале DATA-01."),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Pwr01,"Проникните в Сектор 03 и активируйте подстанцию на распределителе PWR-01."),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Qnt01,"Доберитесь до квантового релея QNT-01 в Секторе 04 и откройте служебный контур."));
     }
     public sealed class MissionProgress
     {

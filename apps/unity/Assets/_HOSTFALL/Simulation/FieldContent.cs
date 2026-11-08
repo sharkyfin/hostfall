@@ -173,7 +173,7 @@ namespace Hostfall.Simulation
         private void OnWorldChanged()
         {
             if (Simulation.SourceIsolated) Advance("process", KnowledgeState.Applied);
-            if (Simulation.Mission.IsComplete) Advance("server", KnowledgeState.Applied);
+            if (Simulation.Terminals.IsComplete(DeviceId.Core01) || Simulation.Mission.IsComplete) Advance("server", KnowledgeState.Applied);
             Changed?.Invoke();
         }
         public FieldProgressData CaptureProgress() => new()

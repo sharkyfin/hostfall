@@ -61,7 +61,6 @@ namespace Hostfall.Simulation
             {
                 state.completed=true;
                 world.CompleteRoutine(id);
-                world[id].Terminal.AddLine(id==DeviceId.Ws07?"Импульс готов. Автономные машины продолжают патруль.":id==DeviceId.Edge01?"Шлюз разблокирован. Приводы наблюдателя замедлены на 12 секунд.":"Карта участка скопирована. Помеха приводам активна 12 секунд. Роботы остаются автономными.","result");
             }
             world.NotifyTerminalChanged();
         }

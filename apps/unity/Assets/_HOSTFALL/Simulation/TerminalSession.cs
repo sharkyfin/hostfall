@@ -20,7 +20,7 @@ namespace Hostfall.Simulation
         public VirtualComputer Computer => simulation[Host];
         public string Prompt => "operator@" + Host.Hostname() + ":" + Computer.WorkingDirectory + "$";
         public TerminalSession(FacilitySimulation simulation, DeviceId host)
-        { this.simulation=simulation; origin=host; TerminalDisplay.Ensure(simulation[host]); Host=simulation[host].Terminal.Host; }
+        { this.simulation=simulation; origin=host; TerminalDisplay.Ensure(simulation[host], simulation.AutomatedRoute); Host=simulation[host].Terminal.Host; }
         public void Resume(DeviceId host) { if (!Enum.IsDefined(typeof(DeviceId),host)) throw new ArgumentException("Unknown host"); Host=host; simulation[origin].Terminal.Host=host; }
         public CommandResult Execute(string line)
         {

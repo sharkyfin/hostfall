@@ -44,11 +44,12 @@ namespace Hostfall.Editor
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             world = new GameObject("NORTHLINE / Facility 04").transform;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(.18f, .21f, .24f);
-            RenderSettings.ambientEquatorColor = new Color(.10f, .12f, .14f);
-            RenderSettings.ambientGroundColor = new Color(.045f, .055f, .06f);
-            RenderSettings.fog = true; RenderSettings.fogColor = new Color(.07f, .10f, .13f);
-            RenderSettings.fogMode = FogMode.ExponentialSquared; RenderSettings.fogDensity = .018f;
+            RenderSettings.ambientSkyColor = new Color(.42f, .48f, .56f);
+            RenderSettings.ambientEquatorColor = new Color(.30f, .35f, .42f);
+            RenderSettings.ambientGroundColor = new Color(.20f, .24f, .28f);
+            RenderSettings.ambientIntensity = 1.8f;
+            RenderSettings.fog = true; RenderSettings.fogColor = new Color(.10f, .14f, .18f);
+            RenderSettings.fogMode = FogMode.ExponentialSquared; RenderSettings.fogDensity = .004f;
             ModularKit.Prepare(); EngineeringDressing.Prepare(); RobotArt.Prepare(); CreatePrefabs();
             Room("SOC / Operations Center", new Vector3(0, 0, -3), 10, 8, false, true);
             Room("SRV / Server Room", new Vector3(0, 0, 11), 10, 8, true, false);
@@ -112,6 +113,7 @@ namespace Hostfall.Editor
             roots.AddComponent<FacilityRoot>().Configure(controls, input, player, rig, fps, tps, brain, visual, scanner, ui, terminals, door, power, mission, fieldUI, watcher, notes, save,new[] { sentry });
             PostProcessing();
             ActionRouteUpgrade.AddPlatforms(scene);
+            SectorExpansionBuilder.Build(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
@@ -160,6 +162,27 @@ namespace Hostfall.Editor
             string path = Content + "/Materials/" + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null) { material = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(material, path); }
+            if (name == "Glass" || name.Contains("Glass"))
+            {
+                material.SetFloat("_Surface", 1);
+                material.SetFloat("_Blend", 0);
+                material.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                material.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                material.SetFloat("_ZWrite", 0);
+                material.SetFloat("_Cull", 0); // Double-sided rendering so visible from both inside and outside
+                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                material.SetOverrideTag("RenderType", "Transparent");
+                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                material.SetColor("_BaseColor", new Color(0.18f, 0.42f, 0.52f, 0.22f)); // Clear, transparent tinted glass
+                material.SetFloat("_Smoothness", 0.96f);
+                material.SetFloat("_Metallic", 0.15f);
+                material.EnableKeyword("_EMISSION");
+                material.SetColor("_EmissionColor", new Color(0.03f, 0.08f, 0.12f));
+                material.SetFloat("_EnvironmentReflections", 1);
+                material.enableInstancing = true;
+                EditorUtility.SetDirty(material);
+                return material;
+            }
             color.a=1;
             material.SetFloat("_Surface",0); material.SetFloat("_ZWrite",1); material.SetFloat("_SrcBlend",1); material.SetFloat("_DstBlend",0); material.SetFloat("_AlphaClip",0);
             material.DisableKeyword("_SURFACE_TYPE_TRANSPARENT"); material.SetOverrideTag("RenderType","Opaque"); material.renderQueue=(int)RenderQueue.Geometry;
@@ -224,16 +247,11 @@ namespace Hostfall.Editor
             for (int z = -2; z <= 2; z += 4)
             {
                 var fixture=ModularKit.Place("Prop_Light_Small",group,new Vector3(0,3.08f,z),new Vector3(3.7f,.12f,.35f));
-                bool lit=!soc||z<0;
-                if(!lit) foreach(var renderer in fixture.GetComponentsInChildren<Renderer>()) renderer.sharedMaterial=metal;
-                LightAt(soc?"SOC local reflected fill":"CORE local reflected fill",center+new Vector3(0,2.7f,z),soc?new Color(.93f,.82f,.65f):new Color(.7f,.84f,.95f),lit?.85f:.16f,4.2f,false);
-                if(lit)
-                {
-                    var task=new GameObject(soc?"SOC overhead pool":"CORE overhead pool").AddComponent<Light>(); task.transform.SetParent(group,false);
-                    task.transform.localPosition=new Vector3(0,3.02f,z); task.transform.localRotation=Quaternion.Euler(90,0,0);
-                    task.type=LightType.Spot; task.color=soc?new Color(1,.87f,.7f):new Color(.76f,.87f,1);
-                    task.intensity=soc?5.2f:4.3f; task.range=7; task.spotAngle=100; task.innerSpotAngle=64; task.shadows=LightShadows.Soft;
-                }
+                LightAt(soc?"SOC local reflected fill":"CORE local reflected fill",center+new Vector3(0,2.7f,z),soc?new Color(.95f,.88f,.78f):new Color(.82f,.90f,1.0f),3.2f,9.0f,false);
+                var task=new GameObject(soc?"SOC overhead pool":"CORE overhead pool").AddComponent<Light>(); task.transform.SetParent(group,false);
+                task.transform.localPosition=new Vector3(0,3.02f,z); task.transform.localRotation=Quaternion.Euler(90,0,0);
+                task.type=LightType.Spot; task.color=soc?new Color(1,.92f,.82f):new Color(.85f,.92f,1.0f);
+                task.intensity=soc?7.5f:6.8f; task.range=10; task.spotAngle=110; task.innerSpotAngle=70; task.shadows=LightShadows.Soft;
                 Box("Overhead cable tray", new Vector3(-3.7f, 3.05f, 0), new Vector3(.4f, .1f, depth), dark, group);
             }
             for (int x = -4; x <= 4; x += 2)
@@ -261,8 +279,8 @@ namespace Hostfall.Editor
             }
             for (int z = 2; z <= 6; z += 2)
             {
-                Box("Corridor luminaire", new Vector3(0, 2.96f, z), new Vector3(.7f, .04f, .18f), z==4?metal:warmLight, null, false);
-                if(z!=4) LightAt("Corridor pool",new Vector3(0,2.8f,z),new Color(1,.7f,.4f),.85f,2.65f,false);
+                Box("Corridor luminaire", new Vector3(0, 2.96f, z), new Vector3(.7f, .04f, .18f), warmLight, null, false);
+                LightAt("Corridor pool " + z, new Vector3(0, 2.8f, z), new Color(1.0f, 0.88f, 0.72f), 3.5f, 6.0f, false);
             }
         }
         private static void CreatePrefabs()
@@ -314,8 +332,19 @@ namespace Hostfall.Editor
             var bodyText = ScreenText(group, "", new Vector3(-.405f, 1.49f, .109f), .00265f, new Color(.68f,.78f,.76f));
             var status = ScreenText(group, "", new Vector3(-.405f, 1.153f, .109f), .0025f, new Color(.43f,.58f,.59f));
             group.gameObject.AddComponent<ComputerScreen>().Configure(title, bodyText, status);
-            var glow = new GameObject("Display spill").AddComponent<Light>(); glow.transform.SetParent(group,false);
-            glow.transform.localPosition = new Vector3(0,1.45f,-.05f); glow.type = LightType.Point; glow.range = 1.5f; glow.intensity = .15f; glow.color = new Color(.4f,.75f,.7f);
+            Box("Overhead Lamp Fixture", new Vector3(0, 2.45f, .18f), new Vector3(.72f, .08f, .16f), dark, group, false);
+            Box("Overhead Lamp Blue Lens", new Vector3(0, 2.41f, .18f), new Vector3(.62f, .015f, .10f), Material("Kit M_Light", new Color(.1f,.7f,.8f), 0, .35f, 2.0f), group, false);
+            // Stanchions anchored to desk frame (desk top surface is at Y=0.78, stanchions rise Y=0.78 to Y=2.45)
+            Box("Lamp Stanchion L", new Vector3(-.28f, 1.615f, .18f), new Vector3(.03f, 1.67f, .03f), dark, group, false);
+            Box("Lamp Stanchion R", new Vector3(.28f, 1.615f, .18f), new Vector3(.03f, 1.67f, .03f), dark, group, false);
+            // Cantilever arms connecting stanchions forward to hood
+            Box("Lamp Cantilever L", new Vector3(-.28f, 2.45f, .13f), new Vector3(.025f, .035f, .10f), dark, group, false);
+            Box("Lamp Cantilever R", new Vector3(.28f, 2.45f, .13f), new Vector3(.025f, .035f, .10f), dark, group, false);
+            var taskSpot = new GameObject("Terminal task spot").AddComponent<Light>(); taskSpot.transform.SetParent(group, false);
+            taskSpot.transform.localPosition = new Vector3(0, 2.38f, .18f);
+            taskSpot.transform.localRotation = Quaternion.Euler(80, 0, 0);
+            taskSpot.type = LightType.Spot; taskSpot.range = 3.2f; taskSpot.spotAngle = 65; taskSpot.innerSpotAngle = 38;
+            taskSpot.intensity = 3.2f; taskSpot.color = new Color(.18f, .65f, 1.0f);
             var terminal = group.gameObject.AddComponent<ComputerTerminal>(); terminal.Configure(id.Value, display.GetComponent<Renderer>(), screen, dark, lines.gameObject);
             var tag = Sign(id.Value.Hostname().ToUpperInvariant(), Vector3.zero, 0, .055f, new Color(.8f, .87f, .89f));
             tag.transform.SetParent(group, false); tag.transform.localPosition = new Vector3(0, 1.68f, .16f); tag.transform.localRotation = Quaternion.identity;
@@ -326,6 +355,8 @@ namespace Hostfall.Editor
             EngineeringDressing.Place("Shift notebook",world,new Vector3(2.15f,.842f,-3.63f),165);
             EngineeringDressing.Place("Maintenance cart",world,new Vector3(4.15f,0,-2.05f),90);
             EngineeringDressing.Place("Cooling valve",world,new Vector3(4.55f,1.05f,10.6f),90);
+            Box("Cooling pipe riser", new Vector3(4.82f, 1.65f, 10.6f), new Vector3(.12f, 3.3f, .12f), dark);
+            Box("Cooling pipe tee", new Vector3(4.68f, 1.05f, 10.6f), new Vector3(.2f, .14f, .14f), metal);
             TaskLamp(new Vector3(-3.27f,.84f,-4.07f));
             ModularKit.Place("Prop_Cable_1",world,new Vector3(4.35f,.012f,-4.9f),new Vector3(.7f,.07f,1.2f));
             ModularKit.Place("Prop_Crate3",world,new Vector3(4.15f,0,-5.75f),new Vector3(.65f,.65f,.65f),0,true);
@@ -359,9 +390,21 @@ namespace Hostfall.Editor
             for (int side = -1; side <= 1; side += 2)
                 Box("Portal jamb", new Vector3(side * 1.23f, 1.3f, 0), new Vector3(.12f, 2.6f, .36f), dark, group);
             var leaf = new GameObject("Sliding leaf").transform; leaf.SetParent(group, false);
-            Box("Airlock panel", new Vector3(0, 1.27f, 0), new Vector3(2.3f, 2.54f, .16f), metal, leaf);
-            Box("Inspection glass", new Vector3(0, 1.7f, -.09f), new Vector3(1.4f, .48f, .025f), glass, leaf, false);
-            Box("Warning band", new Vector3(0, .6f, -.09f), new Vector3(2.1f, .055f, .025f), amber, leaf, false);
+            // Genuine cut-out aperture for inspection window (width 1.2m, height 0.44m, center Y 1.65m)
+            Box("Airlock lower panel", new Vector3(0, 0.715f, 0), new Vector3(2.3f, 1.43f, .16f), metal, leaf);
+            Box("Airlock upper panel", new Vector3(0, 2.205f, 0), new Vector3(2.3f, 0.67f, .16f), metal, leaf);
+            Box("Airlock left jamb panel", new Vector3(-0.875f, 1.65f, 0), new Vector3(0.55f, 0.44f, .16f), metal, leaf);
+            Box("Airlock right jamb panel", new Vector3(0.875f, 1.65f, 0), new Vector3(0.55f, 0.44f, .16f), metal, leaf);
+            Box("Inspection glass", new Vector3(0, 1.65f, 0), new Vector3(1.18f, 0.42f, .035f), glass, leaf, true);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                float zBezel = side * 0.082f;
+                Box("Glass bezel top " + side, new Vector3(0, 1.885f, zBezel), new Vector3(1.28f, 0.035f, 0.02f), dark, leaf, false);
+                Box("Glass bezel bottom " + side, new Vector3(0, 1.415f, zBezel), new Vector3(1.28f, 0.035f, 0.02f), dark, leaf, false);
+                Box("Glass bezel left " + side, new Vector3(-0.605f, 1.65f, zBezel), new Vector3(0.035f, 0.47f, 0.02f), dark, leaf, false);
+                Box("Glass bezel right " + side, new Vector3(0.605f, 1.65f, zBezel), new Vector3(0.035f, 0.47f, 0.02f), dark, leaf, false);
+                Box("Warning band " + side, new Vector3(0, 0.6f, side * 0.082f), new Vector3(2.1f, 0.055f, 0.015f), amber, leaf, false);
+            }
             Box("Door control / both sides", new Vector3(-1.06f, 1.2f, 0), new Vector3(.18f, .35f, .45f), amber, group);
             var door = group.gameObject.AddComponent<FacilityDoor>(); door.Configure(leaf);
             // Whole hierarchy is dynamic: the leaf retains its own solid collider.

@@ -92,6 +92,10 @@ namespace Hostfall.Simulation
         {
             if(id!=DeviceId.Ws07) Actions.ApplyNetworkSlow();
             if(id==DeviceId.Core01) this[id].WriteFile("/home/operator/route-map.txt","Карта участка: операторская → служебный проход → серверная.\nДанные скопированы в личный архив инженера.\n");
+            RecordTerminalObjective(id);
+        }
+        public void RecordTerminalObjective(DeviceId id)
+        {
             Mission.Record(ObjectiveCondition.TerminalSequence,id);
             StateChanged?.Invoke();
         }

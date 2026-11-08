@@ -15,6 +15,7 @@ namespace Hostfall.Player
         public InputAction Jump { get; private set; }
         public InputAction Dash { get; private set; }
         public InputAction Pulse { get; private set; }
+        public InputAction Fire { get; private set; }
         public InputAction SwitchCamera { get; private set; }
         public InputAction Interact { get; private set; }
         public InputAction Escape { get; private set; }
@@ -33,6 +34,8 @@ namespace Hostfall.Player
             Jump = gameplay.AddAction("Jump", InputActionType.Button, "<Keyboard>/space");
             Dash = gameplay.AddAction("Dash", InputActionType.Button, "<Keyboard>/q");
             Pulse = gameplay.AddAction("Pulse", InputActionType.Button, "<Keyboard>/f");
+            Fire = gameplay.AddAction("Fire", InputActionType.Button, "<Mouse>/leftButton");
+            Fire.AddBinding("<Gamepad>/rightTrigger");
             SwitchCamera = gameplay.AddAction("Camera", InputActionType.Button, "<Keyboard>/v");
             Interact = gameplay.AddAction("Interact", InputActionType.Button, "<Keyboard>/e");
             Escape = system.AddAction("Escape", InputActionType.Button, "<Keyboard>/escape");

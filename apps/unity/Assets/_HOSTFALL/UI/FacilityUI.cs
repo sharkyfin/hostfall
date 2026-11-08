@@ -70,6 +70,7 @@ namespace Hostfall.UI
         public void OpenTerminal(DeviceId id)
         {
             if(!simulation.Terminals.CanRun(id)) { ShowActionNotice(simulation.Terminals.Status(id)); return; }
+            customSession = null;
             activeTerminal=id; session=new TerminalSession(simulation,id); memory=simulation[id].Terminal;
             simulation.Terminals.Begin(id);
             output.Clear(); foreach(var line in memory.Lines) RenderLine(line.text,line.style);
@@ -77,8 +78,60 @@ namespace Hostfall.UI
             RefreshPrompt(); controls.SetMode(ControlMode.Terminal);
             rootFocus();
         }
+
+        private struct CustomSession
+        {
+            public string Host;
+            public string Address;
+            public string[] Commands;
+            public string[] Outputs;
+            public int Step;
+            public int Typed;
+            public float Wait;
+            public Action OnComplete;
+        }
+        private CustomSession? customSession;
+
+        public void OpenTerminalSession(string hostName, string address, string[] commands, string[] outputs, Action onComplete = null)
+        {
+            session = null; memory = null;
+            customSession = new CustomSession
+            {
+                Host = hostName,
+                Address = address,
+                Commands = commands ?? Array.Empty<string>(),
+                Outputs = outputs ?? Array.Empty<string>(),
+                Step = 0,
+                Typed = 0,
+                Wait = 0,
+                OnComplete = onComplete
+            };
+            output.Clear();
+            host.text = hostName.ToUpperInvariant() + " / " + address;
+            inputPrompt.text = "operator@" + hostName + ":~$ ";
+            typedCommand.text = "";
+            routineStatus.text = "Авторизация канала";
+            controls.SetMode(ControlMode.Terminal);
+            rootFocus();
+        }
+
         private void rootFocus()=>GetComponent<UIDocument>().rootVisualElement.Q<Button>("close-terminal").Focus();
-        private void CloseTerminal() { session=null; memory=null; controls.SetMode(ControlMode.Exploring); }
+        private void CloseTerminal()
+        {
+            if (customSession.HasValue && customSession.Value.OnComplete != null)
+            {
+                var callback = customSession.Value.OnComplete;
+                customSession = null;
+                callback();
+            }
+            session = null;
+            memory = null;
+            customSession = null;
+            GetComponent<UIDocument>()?.rootVisualElement?.Q<Button>("close-terminal")?.Blur();
+            controls.SetMode(ControlMode.Exploring);
+            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+            UnityEngine.Cursor.visible = false;
+        }
         public void BeginSession()
         {
             ResetPage(); controls.SetMode(field.IntroductionSeen?ControlMode.Exploring:ControlMode.Introduction);
@@ -102,8 +155,22 @@ namespace Hostfall.UI
             RefreshActionNotice();
             if(controls.Mode==ControlMode.Terminal && memory!=null)
             {
-                simulation.Terminals.Tick(activeTerminal,Time.unscaledDeltaTime);
+                bool fastForward = bindings != null && (bindings.Interact.WasPressedThisFrame() || bindings.Pulse.WasPressedThisFrame());
+                simulation.Terminals.Tick(activeTerminal, fastForward ? 5f : Time.unscaledDeltaTime * 2.5f);
                 RefreshPrompt();
+            }
+            else if(controls.Mode==ControlMode.Terminal && customSession.HasValue)
+            {
+                TickCustomSession(Time.unscaledDeltaTime);
+            }
+            if(controls.Mode==ControlMode.Terminal)
+            {
+                bool ePressed = UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame;
+                if(bindings.Escape.WasPressedThisFrame() || ePressed)
+                {
+                    CloseTerminal();
+                    return;
+                }
             }
             if(bindings.Load.WasPressedThisFrame() && controls.Mode==ControlMode.MainMenu) { OpenPage("load"); return; }
             if(!bindings.Escape.WasPressedThisFrame()) return;
@@ -257,6 +324,80 @@ namespace Hostfall.UI
         private void RenderLine(string text,string style)
         {
             var label=new Label(text) { enableRichText=false, selection={isSelectable=true} }; label.AddToClassList(style); output.Add(label);
+        }
+        public void TickCustomSession(float dt)
+        {
+            if(!customSession.HasValue || dt <= 0 || float.IsNaN(dt)) return;
+            var cs = customSession.Value;
+            if(cs.Step >= cs.Commands.Length) return;
+
+            bool fastForward = bindings != null && (bindings.Interact.WasPressedThisFrame() || bindings.Pulse.WasPressedThisFrame());
+            if (fastForward)
+            {
+                while (cs.Step < cs.Commands.Length)
+                {
+                    string fcmd = cs.Commands[cs.Step];
+                    RenderLine("operator@" + cs.Host + ":~$ " + fcmd, "prompt");
+                    if (cs.Step < cs.Outputs.Length && !string.IsNullOrEmpty(cs.Outputs[cs.Step]))
+                    {
+                        RenderLine(cs.Outputs[cs.Step], "result");
+                    }
+                    cs.Step++;
+                }
+                cs.Typed = 0;
+                cs.Wait = 0;
+                typedCommand.text = "";
+                routineStatus.text = "Сеанс завершён · Доступ открыт";
+                output.schedule.Execute(() => output.scrollOffset = new Vector2(0, Mathf.Max(0, output.verticalScroller.highValue)));
+                var callback = cs.OnComplete;
+                cs.OnComplete = null;
+                customSession = cs;
+                callback?.Invoke();
+                return;
+            }
+
+            string cmd = cs.Commands[cs.Step];
+            cs.Wait += Mathf.Min(dt, 0.1f);
+
+            if(cs.Typed < cmd.Length)
+            {
+                int count = (int)(cs.Wait * 450);
+                if(count > 0)
+                {
+                    cs.Wait -= count / 450f;
+                    cs.Typed = Mathf.Min(cmd.Length, cs.Typed + count);
+                    typedCommand.text = cmd.Substring(0, cs.Typed);
+                    customSession = cs;
+                }
+                return;
+            }
+
+            if(cs.Wait < 0.06f) { customSession = cs; return; }
+
+            // Commit command
+            RenderLine("operator@" + cs.Host + ":~$ " + cmd, "prompt");
+            if(cs.Step < cs.Outputs.Length && !string.IsNullOrEmpty(cs.Outputs[cs.Step]))
+            {
+                RenderLine(cs.Outputs[cs.Step], "result");
+            }
+            output.schedule.Execute(()=>output.scrollOffset=new Vector2(0,Mathf.Max(0,output.verticalScroller.highValue)));
+
+            cs.Step++;
+            cs.Typed = 0;
+            cs.Wait = 0;
+            typedCommand.text = "";
+
+            if(cs.Step == cs.Commands.Length)
+            {
+                routineStatus.text = "Сеанс завершён · Доступ открыт";
+                var callback = cs.OnComplete;
+                cs.OnComplete = null;
+                customSession = cs;
+                callback?.Invoke();
+                return;
+            }
+
+            customSession = cs;
         }
         private void OnDestroy()
         { if(controls!=null) controls.Changed-=RefreshMode; if(simulation!=null) simulation.StateChanged-=RefreshSimulation; if(persistence!=null) persistence.StatusChanged-=OnSaveResult; }

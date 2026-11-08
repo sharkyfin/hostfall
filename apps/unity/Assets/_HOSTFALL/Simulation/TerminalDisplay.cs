@@ -13,17 +13,20 @@ namespace Hostfall.Simulation
         public string Transcript => string.Join("\n\n",Memory.Lines.Select(l=>l.text));
         private TerminalDisplay(FacilitySimulation world,DeviceId origin)
         {
-            var computer=world[origin]; Memory=computer.Terminal; Ensure(computer);
+            var computer=world[origin]; Memory=computer.Terminal; Ensure(computer, world.AutomatedRoute);
             var host=world[Memory.Host]; Header=host.Id.Hostname().ToUpperInvariant()+" / "+host.Address;
             Prompt="operator@"+host.Id.Hostname()+":"+host.WorkingDirectory+"$";
         }
         public static TerminalDisplay Read(FacilitySimulation world,DeviceId origin)=>new(world,origin);
-        internal static void Ensure(VirtualComputer computer)
+        internal static void Ensure(VirtualComputer computer, bool automatedRoute = true)
         {
             if(computer.Terminal.Initialized) return;
             var memory=computer.Terminal; memory.Initialized=true;
-            memory.AddLine("Сеанс "+computer.Id.Hostname().ToUpperInvariant(),"muted");
-            memory.AddLine("PID    ПРОЦЕСС\n"+string.Join("\n",computer.Processes.Select(p=>p.Pid.ToString().PadRight(7)+p.Command)),"result");
+            if(!automatedRoute)
+            {
+                memory.AddLine("Сеанс "+computer.Id.Hostname().ToUpperInvariant(),"muted");
+                memory.AddLine("PID    ПРОЦЕСС\n"+string.Join("\n",computer.Processes.Select(p=>p.Pid.ToString().PadRight(7)+p.Command)),"result");
+            }
         }
         public string Tail(int width,int rows)
         {

@@ -27,6 +27,17 @@ namespace Hostfall.Core
             Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !locked;
         }
+        private void Update()
+        {
+            if (Mode == ControlMode.Exploring && Application.isFocused)
+            {
+                if (Cursor.lockState != CursorLockMode.Locked || Cursor.visible)
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible = false;
+                }
+            }
+        }
         private void OnDestroy() { Time.timeScale = 1; Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
     }
 }

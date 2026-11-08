@@ -14,8 +14,6 @@ namespace Hostfall.Interaction
         private UnityEngine.Camera view;
         private string lastPrompt;
         private IInteractable previousTarget;
-        private float terminalDwell;
-        private bool connected;
         public event Action<string> PromptChanged;
         public void Initialize(PlayerMotor motor, FacilityInput bindings, ControlState state, UnityEngine.Camera outputCamera)
         { player = motor; input = bindings; controls = state; view = outputCamera; }
@@ -35,14 +33,11 @@ namespace Hostfall.Interaction
             }
             string prompt = target?.Prompt ?? "";
             if (prompt != lastPrompt) { lastPrompt = prompt; PromptChanged?.Invoke(prompt); }
-            if(controls.Mode!=ControlMode.Exploring) return;
-            if(target!=previousTarget) { previousTarget=target; terminalDwell=0; connected=false; }
-            if(target!=null&&controls.CanExplore&&input.Interact.WasPressedThisFrame())
-            { connected=true; target.Interact(); return; }
-            if(!connected&&target is Hostfall.Devices.ComputerTerminal computer&&computer.ShouldConnect)
+            if (controls.Mode != ControlMode.Exploring) return;
+            if (target != previousTarget) { previousTarget = target; }
+            if (target != null && controls.CanExplore && input.Interact.WasPressedThisFrame())
             {
-                terminalDwell+=Time.deltaTime;
-                if(terminalDwell>=.65f) { connected=true; computer.Interact(); }
+                target.Interact();
             }
         }
     }

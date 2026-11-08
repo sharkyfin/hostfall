@@ -15,6 +15,7 @@ namespace Hostfall.Persistence
         public Vector3 dashDirection;
         public float dashRemaining;
         public bool airDashUsed;
+        public bool hasWeapon;
     }
     [Serializable] public sealed class DoorStateData { public bool opened; public float offset; }
     [Serializable] public sealed class RobotStateData
@@ -23,6 +24,7 @@ namespace Hostfall.Persistence
         public Vector3 position, sensorEuler;
         public float scan, contactCooldown, bodyYaw;
         public int direction;
+        public bool destroyed;
     }
     [Serializable] public sealed class GameSaveData
     {
@@ -41,7 +43,7 @@ namespace Hostfall.Persistence
             FacilitySimulation.Restore(data.simulation);
             var p = data.player; var r = data.watcher;
             SaveValidation.Require(Finite(p.position) && Finite(p.planarVelocity) && Finite(p.yaw) && Finite(p.pitch) && Finite(p.targetPitch) && Finite(p.verticalSpeed), "Invalid player pose");
-            SaveValidation.Require(Mathf.Abs(p.position.x) < 8 && p.position.z > -10 && p.position.z < 18 && p.position.y > -.5f && p.position.y < 5, "Saved player outside facility");
+            SaveValidation.Require(p.position.x > -32 && p.position.x < 18 && p.position.z > -10 && p.position.z < 68 && p.position.y > -2.5f && p.position.y < 9.5f, "Saved player outside facility");
             SaveValidation.Require(Mathf.Abs(p.pitch) <= 82 && Mathf.Abs(p.targetPitch) <= 82 && p.planarVelocity.magnitude <= 12 && p.verticalSpeed >= -35 && p.verticalSpeed <= 12, "Invalid player motion");
             SaveValidation.Require(Finite(p.dashDirection)&&p.dashDirection.magnitude<=1.01f&&Finite(p.dashRemaining)&&p.dashRemaining>=0&&p.dashRemaining<=.181f,"Invalid saved dash");
             SaveValidation.Require(Finite(data.door.offset) && data.door.offset >= 0 && data.door.offset <= 2.5f, "Invalid door state");
@@ -49,12 +51,12 @@ namespace Hostfall.Persistence
             SaveValidation.Require(Mathf.Abs(r.position.x) <= 1 && r.position.z >= 1.5f && r.position.z <= 6 && r.position.y >= 0 && r.position.y < 2 && r.scan >= 0 && r.contactCooldown >= 0 && r.contactCooldown <= 3.1f, "Invalid robot state");
             SaveValidation.Require(Finite(r.bodyYaw),"Invalid robot orientation");
             // Old saves contain only watcher. Extra enemies are optional and keyed by stable ID.
-            SaveValidation.Require(data.enemies==null||data.enemies.Length<=1,"Unknown saved enemies");
+            SaveValidation.Require(data.enemies==null||data.enemies.Length<=10,"Unknown saved enemies");
             if(data.enemies!=null) foreach(var enemy in data.enemies)
             {
-                SaveValidation.Require(enemy!=null && enemy.id=="sentry-r18","Unknown saved enemy");
+                SaveValidation.Require(enemy!=null && (enemy.id=="sentry-r18"||enemy.id=="sentinel-r21"||enemy.id=="reactor-sentry-r22"||enemy.id=="quantum-watcher-r23"||enemy.id=="patrol-drone-r24"),"Unknown saved enemy");
                 SaveValidation.Require(Finite(enemy.position)&&Finite(enemy.sensorEuler)&&Finite(enemy.bodyYaw)&&Finite(enemy.scan)&&Finite(enemy.contactCooldown),"Invalid enemy pose");
-                SaveValidation.Require(Mathf.Abs(enemy.position.x)<=1.5f&&enemy.position.z>=8.2f&&enemy.position.z<=14.4f&&enemy.position.y>=0&&enemy.position.y<2&&enemy.scan>=0&&enemy.contactCooldown>=0&&enemy.contactCooldown<=3.1f&&(enemy.direction==1||enemy.direction==-1),"Invalid enemy state");
+                SaveValidation.Require(enemy.position.y>=-2.5f&&enemy.position.y<4&&enemy.scan>=0&&enemy.contactCooldown>=0&&enemy.contactCooldown<=3.1f&&(enemy.direction==1||enemy.direction==-1),"Invalid enemy state");
             }
         }
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
