@@ -1,0 +1,26 @@
+{
+  "author": "Quaternius",
+  "license": "CC0-1.0",
+  "source": "https://quaternius.com/packs/modularscifimegakit.html",
+  "download": "https://opengameart.org/sites/default/files/modular_scifi_megakitstandard.zip",
+  "archive_sha256": "4ca9acbc7a13e7baa48e24c4853b779889b7ab21587004c36668826e705c8a10",
+  "models": [
+    "WallAstra_Straight",
+    "WallBand_Straight",
+    "ShortWall_MetalPlates_Straight",
+    "TopCables_Straight",
+    "BottomMetal_Straight",
+    "Platform_CenterPlate",
+    "Platform_DarkPlates",
+    "Door_Frame_Square",
+    "Prop_Light_Small",
+    "Prop_Vent_Wide",
+    "Prop_Cable_1",
+    "Prop_Cable_3",
+    "Prop_Crate3",
+    "Prop_Crate4",
+    "Prop_Computer",
+    "Column_Round"
+  ],
+  "changes": "FBX Unity subset; original files unchanged. ORM converted into URP metallic/smoothness and occlusion maps."
+}

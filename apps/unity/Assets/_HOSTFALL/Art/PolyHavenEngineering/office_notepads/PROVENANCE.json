@@ -1,0 +1,42 @@
+{
+  "asset": "office_notepads",
+  "author": "Ulan Cabanilla",
+  "source": "https://polyhaven.com/a/office_notepads",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "checked": "2026-11-07",
+  "sources": [
+    {
+      "file": "office_notepads.fbx",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/fbx/1k/office_notepads/office_notepads_1k.fbx",
+      "sha256": "f59605849d17e497f68ae724678c7698a9b048d3c7ceb88b9e7c6c4dfe7de3f0"
+    },
+    {
+      "file": "Textures/office_notepads_nor_gl_1k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/office_notepads/office_notepads_nor_gl_1k.jpg",
+      "sha256": "d6be173e3c16755e3c163724b205114f0dc93ff2d6a746b819815f4100432018"
+    },
+    {
+      "file": "Textures/office_notepads_diff_1k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/office_notepads/office_notepads_diff_1k.jpg",
+      "sha256": "6cce5f76748a73954a9158904b6d26319f028f796166c140b3cbf0bbb7c62727"
+    },
+    {
+      "file": "Textures/office_notepads_arm_1k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/office_notepads/office_notepads_arm_1k.jpg",
+      "sha256": "a4a1c7356075ab0de890ae7de0397a0b4c35f6dd7feacafe3a32e773b76c7e68"
+    }
+  ],
+  "derived": [
+    {
+      "file": "Textures/office_notepads_MetalSmooth.png",
+      "source": "Textures/office_notepads_arm_1k.jpg",
+      "formula": "ARM R=AO, G=roughness, B=metal; URP R=metal A=255-roughness; separate AO=R"
+    },
+    {
+      "file": "Textures/office_notepads_Occlusion.png",
+      "source": "Textures/office_notepads_arm_1k.jpg",
+      "formula": "ARM R=AO, G=roughness, B=metal; URP R=metal A=255-roughness; separate AO=R"
+    }
+  ]
+}

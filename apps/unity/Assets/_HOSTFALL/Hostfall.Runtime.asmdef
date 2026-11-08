@@ -1,0 +1,11 @@
+{
+  "name": "Hostfall.Runtime",
+  "rootNamespace": "Hostfall",
+  "references": [
+    "Hostfall.Simulation",
+    "Unity.InputSystem",
+    "Unity.Cinemachine",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
+  ]
+}

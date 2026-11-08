@@ -1,0 +1,17 @@
+{
+  "name": "Hostfall.EditModeTests",
+  "references": [
+    "Hostfall.Runtime",
+    "Hostfall.Simulation",
+    "Unity.RenderPipelines.Core.Runtime"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ]
+}

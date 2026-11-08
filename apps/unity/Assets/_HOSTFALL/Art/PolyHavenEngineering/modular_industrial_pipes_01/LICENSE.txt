@@ -1,0 +1,7 @@
+CC0 1.0 Universal
+Asset: modular_industrial_pipes_01
+Author: Jorge Camacho
+Source: https://polyhaven.com/a/modular_industrial_pipes_01
+Asset license: https://polyhaven.com/license
+Legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+Original FBX and maps preserved. Derived URP maps are documented in PROVENANCE.json.

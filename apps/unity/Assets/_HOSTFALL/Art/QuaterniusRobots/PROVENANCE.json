@@ -1,0 +1,61 @@
+{
+  "author": "Quaternius",
+  "source": "https://opengameart.org/content/sci-fi-essentials-kit",
+  "license": "CC0-1.0",
+  "edition": "Standard free",
+  "archives": [
+    {
+      "url": "https://opengameart.org/sites/default/files/sci-fi_essentials_kit_models.zip",
+      "sha256": "f5cb9382a029730f9fa8f93e7fdb103c1aaaec094a22b1397833ce0e48bd1016"
+    },
+    {
+      "url": "https://opengameart.org/sites/default/files/sci-fi_essentials_kit_textures.zip",
+      "sha256": "d80b61c7be7200c68e584f25292df6d0620516d5eb4d2043aec2cc54decb1e55"
+    }
+  ],
+  "original_files": [
+    {
+      "file": "Enemy_QuadShell.fbx",
+      "archive_path": "FBX (Unity)/Enemy_QuadShell.fbx",
+      "sha256": "823ff8d076f4f99be412cf6854e8e85763efb06cc8e82f4bca8fd93b8a7407a0"
+    },
+    {
+      "file": "Enemy_Trilobite.fbx",
+      "archive_path": "FBX (Unity)/Enemy_Trilobite.fbx",
+      "sha256": "015e1424f20afacd7fcd57a93b95418fd0745f849ee81790ea3853facc19f5e8"
+    },
+    {
+      "file": "Textures/T_Enemies_BaseColor.png",
+      "sha256": "65ab96c4ed89e64d84ed453fd67dfd37027860d81b93fb2a5d5bb2e9e0e35df8"
+    },
+    {
+      "file": "Textures/T_Enemies_Emissive.png",
+      "sha256": "da6ebc7bb22dc15a39a127bcf4ebdf27047274f0f1fb26ca31bb7fc93a46ed0c"
+    },
+    {
+      "file": "Textures/T_Enemies_Large_BaseColor.png",
+      "sha256": "ae0067d40a62d5fcd236bee0db3a2fdf6bb7ae9d0e6515517b60d4c6c7cb0aa4"
+    },
+    {
+      "file": "Textures/T_Enemies_Large_Emissive.png",
+      "sha256": "8396d692fb28a836c4beca9269767d7692168d000d6641710488f790d4aa9ddb"
+    },
+    {
+      "file": "Textures/T_Enemies_Large_Normal.png",
+      "sha256": "0f507d86c9783db126d97434860d4a8282a707c77fafc471484e262d9fcb27d9"
+    },
+    {
+      "file": "Textures/T_Enemies_Large_ORM.png",
+      "sha256": "08d55b86e76f06e7ebdeb68bead1b7349bad30509595706f010e8433fd45dee3"
+    },
+    {
+      "file": "Textures/T_Enemies_Normal.png",
+      "sha256": "3e1f78e93b93df32828ee9a9389665e9ccbe330065a36f365267bd9e094d2187"
+    },
+    {
+      "file": "Textures/T_Enemies_ORM.png",
+      "sha256": "c9b85f821df22954ca63cbeb09bc392bba4e12a3776c413886ea86b8457fd08d"
+    }
+  ],
+  "derived": "MetalSmooth R=ORM.B A=255-ORM.G; separate Occlusion=ORM.R. Originals preserved."
+}

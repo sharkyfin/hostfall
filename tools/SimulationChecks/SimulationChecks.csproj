@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Simulation/*.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/SimulationTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/ActionRouteTests.cs" />
+    <Reference Include="nunit.framework">
+      <HintPath>$(UnityResourcesDir)/PackageManager/BuiltInPackages/com.unity.ext.nunit/net472/unity-custom/nunit.framework.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

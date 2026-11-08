@@ -1,0 +1,7 @@
+CC0 1.0 Universal
+Asset: office_notepads
+Author: Ulan Cabanilla
+Source: https://polyhaven.com/a/office_notepads
+Asset license: https://polyhaven.com/license
+Legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+Original FBX and maps preserved. Derived URP maps are documented in PROVENANCE.json.

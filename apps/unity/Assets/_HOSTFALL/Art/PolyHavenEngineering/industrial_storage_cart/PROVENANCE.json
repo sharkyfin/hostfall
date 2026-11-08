@@ -1,0 +1,42 @@
+{
+  "asset": "industrial_storage_cart",
+  "author": "Jule Bielitz",
+  "source": "https://polyhaven.com/a/industrial_storage_cart",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "checked": "2026-11-07",
+  "sources": [
+    {
+      "file": "industrial_storage_cart.fbx",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/fbx/1k/industrial_storage_cart/industrial_storage_cart_1k.fbx",
+      "sha256": "032d6358f57a444f333018825d8b6fbca3188df653807361892d8be72d40310b"
+    },
+    {
+      "file": "Textures/industrial_storage_cart_nor_gl_1k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/industrial_storage_cart/industrial_storage_cart_nor_gl_1k.jpg",
+      "sha256": "a4fcd4309516e6005b5f3636399bd801df72fc75986831fad9cc5c31b737070a"
+    },
+    {
+      "file": "Textures/industrial_storage_cart_diff_1k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/industrial_storage_cart/industrial_storage_cart_diff_1k.jpg",
+      "sha256": "7e779d7f7385307ebb332aec41bafff10c21972aaf92382f30cacb16957e7d37"
+    },
+    {
+      "file": "Textures/industrial_storage_cart_arm_1k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/industrial_storage_cart/industrial_storage_cart_arm_1k.jpg",
+      "sha256": "956ee8d02021aba0b5fdbf393029b0aaabd7d29076caa3a5678e394f79adcca1"
+    }
+  ],
+  "derived": [
+    {
+      "file": "Textures/industrial_storage_cart_MetalSmooth.png",
+      "source": "Textures/industrial_storage_cart_arm_1k.jpg",
+      "formula": "ARM R=AO, G=roughness, B=metal; URP R=metal A=255-roughness; separate AO=R"
+    },
+    {
+      "file": "Textures/industrial_storage_cart_Occlusion.png",
+      "source": "Textures/industrial_storage_cart_arm_1k.jpg",
+      "formula": "ARM R=AO, G=roughness, B=metal; URP R=metal A=255-roughness; separate AO=R"
+    }
+  ]
+}

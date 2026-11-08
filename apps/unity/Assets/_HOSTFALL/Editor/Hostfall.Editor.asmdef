@@ -1,0 +1,14 @@
+{
+  "name": "Hostfall.Editor",
+  "rootNamespace": "Hostfall.Editor",
+  "references": [
+    "Hostfall.Runtime",
+    "Hostfall.Simulation",
+    "Unity.Cinemachine",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ]
+}

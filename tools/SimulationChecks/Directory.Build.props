@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)../../.artifacts/simulation-checks/obj/</BaseIntermediateOutputPath>
+    <OutputPath>$(MSBuildThisFileDirectory)../../.artifacts/simulation-checks/bin/</OutputPath>
+  </PropertyGroup>
+</Project>

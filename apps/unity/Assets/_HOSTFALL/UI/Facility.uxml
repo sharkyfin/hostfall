@@ -1,0 +1,95 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <Style src="Facility.uss" />
+  <ui:VisualElement name="hud" picking-mode="Ignore">
+    <ui:VisualElement name="task-card" class="task-card" picking-mode="Ignore">
+      <ui:Label name="task-heading" text="Задание" class="task-heading" />
+      <ui:Label name="objective" class="objective" />
+      <ui:Label name="interaction" class="task-action" />
+    </ui:VisualElement>
+  </ui:VisualElement>
+  <ui:VisualElement name="terminal" class="overlay">
+    <ui:VisualElement class="terminal-window">
+      <ui:VisualElement class="window-header">
+        <ui:Label name="host" class="host" />
+        <ui:Button name="close-terminal" text="Закрыть · Esc" class="quiet-button" />
+      </ui:VisualElement>
+      <ui:Label name="routine-status" class="routine-status" />
+      <ui:ScrollView name="output" mode="Vertical" class="output" />
+      <ui:VisualElement class="input-row">
+        <ui:Label name="input-prompt" />
+        <ui:Label name="automatic-command" class="automatic-command" />
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+  <ui:VisualElement name="main-menu" class="overlay front-screen">
+    <ui:VisualElement class="front-layout">
+      <ui:VisualElement class="front-brand">
+        <ui:Label text="HOSTFALL" class="front-title" />
+      </ui:VisualElement>
+      <ui:VisualElement class="front-panel">
+        <ui:Button name="front-continue" text="Продолжить" class="primary" />
+        <ui:Button name="restart" text="Новая игра" />
+        <ui:Button name="load-game" text="Загрузить" />
+        <ui:Button name="front-settings" text="Настройки" />
+        <ui:Button name="quit" text="Выйти из игры" class="quiet-button" />
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+  <ui:VisualElement name="pause" class="overlay">
+    <ui:VisualElement class="pause-card">
+      <ui:VisualElement name="menu-main">
+        <ui:Label name="menu-title" text="Пауза" class="title" />
+        <ui:Button name="resume" text="Продолжить" class="primary" />
+        <ui:Button name="save-game" text="Сохранить" />
+        <ui:VisualElement class="menu-row">
+          <ui:Button name="open-journal" text="Задания" />
+          <ui:Button name="open-archive" text="Знания" />
+        </ui:VisualElement>
+        <ui:Button name="pause-settings" text="Настройки" />
+        <ui:Button name="return-main" text="Главное меню" class="quiet-button" />
+      </ui:VisualElement>
+      <ui:VisualElement name="menu-page">
+        <ui:VisualElement class="menu-page-header">
+          <ui:Button name="menu-back" text="Назад" class="back-button" />
+          <ui:Label name="menu-page-title" class="menu-page-title" />
+        </ui:VisualElement>
+        <ui:ScrollView name="menu-page-body" mode="Vertical" />
+      </ui:VisualElement>
+      <ui:Label name="menu-error" class="menu-error" />
+    </ui:VisualElement>
+  </ui:VisualElement>
+  <ui:VisualElement name="introduction" class="overlay introduction-screen">
+    <ui:VisualElement class="introduction-card">
+      <ui:Label text="Вы на смене" class="article-title" />
+      <ui:Label text="Доберитесь до терминала и задержите взгляд на экране. Герой сам проведёт анализ: команды и ответы появятся перед вами. Выбирать и вводить команды не нужно." class="article-text" />
+      <ui:Label text="Избегайте роботов: Shift — бег, Пробел — прыжок, Q — рывок. Первый терминал откроет импульс на F: наведитесь на робота без преграды и временно заглушите его. Затем уходите — эффект закончится." class="article-text" />
+      <ui:Label text="Задания — J. Знания — K. Пауза — Esc. Новые темы открываются по мере продвижения; выбранный язык программирования останется с этой игрой." class="article-text" />
+      <ui:Button name="intro-understood" text="Понятно" class="primary" />
+    </ui:VisualElement>
+  </ui:VisualElement>
+  <ui:VisualElement name="field-system" class="overlay">
+    <ui:VisualElement class="field-window">
+      <ui:VisualElement class="field-header">
+        <ui:Button name="field-quests" text="Задания" class="field-tab" />
+        <ui:Button name="field-knowledge" text="Знания" class="field-tab" />
+        <ui:VisualElement class="header-space" />
+        <ui:Button name="field-close" text="Закрыть · Esc" class="quiet-button" />
+      </ui:VisualElement>
+      <ui:VisualElement name="journal" class="field-body">
+        <ui:ScrollView name="quest-list" class="quest-list" />
+        <ui:ScrollView name="quest-body" class="reading-pane" />
+      </ui:VisualElement>
+      <ui:VisualElement name="archive" class="archive-page">
+        <ui:VisualElement name="knowledge-domains" class="domain-tabs" />
+        <ui:VisualElement class="field-body">
+          <ui:VisualElement class="knowledge-library-pane">
+            <ui:TextField name="knowledge-search" label="Поиск" class="knowledge-search" />
+            <ui:Label name="knowledge-progress" class="article-meta" />
+            <ui:ScrollView name="knowledge-results" class="knowledge-results" />
+          </ui:VisualElement>
+          <ui:ScrollView name="article-body" class="reading-pane" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

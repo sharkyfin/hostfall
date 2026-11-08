@@ -11,3 +11,22 @@ dist/
 coverage/
 *.tsbuildinfo
 .artifacts/
+
+# Unity-generated state and local builds; Assets and meta files are source.
+apps/unity/[Ll]ibrary/
+apps/unity/[Tt]emp/
+apps/unity/[Oo]bj/
+apps/unity/[Ll]ogs/
+apps/unity/[Uu]ser[Ss]ettings/
+apps/unity/[Bb]uilds/
+apps/unity/MemoryCaptures/
+*.csproj
+*.sln
+*.slnx
+*.user
+*.pidb
+*.booproj
+*.opendb
+*.VC.db
+
+!tools/SimulationChecks/SimulationChecks.csproj

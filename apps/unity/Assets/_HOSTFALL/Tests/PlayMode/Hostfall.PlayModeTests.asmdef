@@ -1,0 +1,15 @@
+{
+  "name": "Hostfall.PlayModeTests",
+  "references": [
+    "Hostfall.Runtime",
+    "Hostfall.Simulation",
+    "Unity.InputSystem"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "includePlatforms": [],
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ]
+}

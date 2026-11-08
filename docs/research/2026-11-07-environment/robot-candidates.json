@@ -1,0 +1,71 @@
+{
+  "archive_download": "https://opengameart.org/sites/default/files/sci-fi_essentials_kit_models.zip",
+  "archive_sha256": "f5cb9382a029730f9fa8f93e7fdb103c1aaaec094a22b1397833ce0e48bd1016",
+  "candidates": [
+    {
+      "id": "Enemy_EyeDrone",
+      "source": "https://opengameart.org/content/sci-fi-essentials-kit",
+      "license": "CC0-1.0",
+      "triangles": 3530,
+      "joints": 8,
+      "clips": [
+        "Attack",
+        "BackFlip",
+        "Charging",
+        "Hit",
+        "Idle",
+        "Look"
+      ],
+      "materials": [
+        "MI_Enemies"
+      ],
+      "in_active_scene": false,
+      "inspection": "archive glTF; Unity animation playback not tested"
+    },
+    {
+      "id": "Enemy_QuadShell",
+      "source": "https://opengameart.org/content/sci-fi-essentials-kit",
+      "license": "CC0-1.0",
+      "triangles": 7494,
+      "joints": 28,
+      "clips": [
+        "Attack",
+        "Charge",
+        "Hit",
+        "Idle",
+        "Look",
+        "Run",
+        "TurnOff",
+        "Walk"
+      ],
+      "materials": [
+        "MI_Enemies"
+      ],
+      "in_active_scene": true,
+      "inspection": "archive glTF metrics; source FBX (Unity) imported as Generic rig; Idle/Walk/Run/Attack/TurnOff controller; actual Walk bone playback and disabled root motion verified in PlayMode"
+    },
+    {
+      "id": "Enemy_Trilobite",
+      "source": "https://opengameart.org/content/sci-fi-essentials-kit",
+      "license": "CC0-1.0",
+      "triangles": 8338,
+      "joints": 20,
+      "clips": [
+        "Attack",
+        "AttackAuto",
+        "Hanging",
+        "Hit",
+        "Idle",
+        "Look",
+        "Run",
+        "TurnOff",
+        "Walk"
+      ],
+      "materials": [
+        "MI_Enemies_Large"
+      ],
+      "in_active_scene": true,
+      "inspection": "archive glTF metrics; source FBX (Unity) imported as Generic rig; Idle/Walk/Run/Attack/TurnOff controller; actual Walk bone playback and disabled root motion verified in PlayMode"
+    }
+  ]
+}

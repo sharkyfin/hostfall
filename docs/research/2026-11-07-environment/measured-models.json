@@ -1,0 +1,138 @@
+[
+  {
+    "id": "fire_alarm",
+    "name": "Fire Alarm",
+    "source": "https://polyhaven.com/a/fire_alarm",
+    "license": "CC0-1.0",
+    "authors": {
+      "Slinc": "All"
+    },
+    "api_polycount": 2705,
+    "gltf_triangle_count": 2705,
+    "mesh_definitions": 2,
+    "mesh_nodes": 2,
+    "material_definitions": 1,
+    "gltf_1k_total_bytes": 1949606,
+    "sha256_gltf": "4a924f45a0f23036a938e06a251677f9654f39507f0e13d06cc4a0b05c83b959",
+    "status": "research only; not imported into Unity"
+  },
+  {
+    "id": "industrial_caged_sconce",
+    "name": "Industrial Caged Sconce",
+    "source": "https://polyhaven.com/a/industrial_caged_sconce",
+    "license": "CC0-1.0",
+    "authors": {
+      "Ulan Cabanilla": "All"
+    },
+    "api_polycount": 26576,
+    "gltf_triangle_count": 26576,
+    "mesh_definitions": 11,
+    "mesh_nodes": 11,
+    "material_definitions": 1,
+    "gltf_1k_total_bytes": 3125535,
+    "sha256_gltf": "a2fa6163a5eab0e3f00815a39d0be5f75985c899ca2ed60420e8d77f9c5e086b",
+    "status": "research only; not imported into Unity"
+  },
+  {
+    "id": "industrial_storage_cart",
+    "name": "Industrial Storage Cart",
+    "source": "https://polyhaven.com/a/industrial_storage_cart",
+    "license": "CC0-1.0",
+    "authors": {
+      "Jule Bielitz": "All"
+    },
+    "api_polycount": 18902,
+    "gltf_triangle_count": 18902,
+    "mesh_definitions": 1,
+    "mesh_nodes": 1,
+    "material_definitions": 1,
+    "gltf_1k_total_bytes": 2637620,
+    "sha256_gltf": "f420b66b2e56513542b9598f038eb5f5ce120746735997807e58552049884043",
+    "status": "research only; not imported into Unity"
+  },
+  {
+    "id": "metal_office_desk",
+    "name": "Metal Office Desk",
+    "source": "https://polyhaven.com/a/metal_office_desk",
+    "license": "CC0-1.0",
+    "authors": {
+      "Ulan Cabanilla": "All"
+    },
+    "api_polycount": 6898,
+    "gltf_triangle_count": 6898,
+    "mesh_definitions": 9,
+    "mesh_nodes": 9,
+    "material_definitions": 1,
+    "gltf_1k_total_bytes": 1606530,
+    "sha256_gltf": "f07032a5ee89aacceebf10fd9fa192c22775ae81861cfb0bdb1594497179373c",
+    "status": "research only; not imported into Unity"
+  },
+  {
+    "id": "modular_electric_cables",
+    "name": "Modular Electric Cables",
+    "source": "https://polyhaven.com/a/modular_electric_cables",
+    "license": "CC0-1.0",
+    "authors": {
+      "Kuutti Siitonen": "All"
+    },
+    "api_polycount": 42078,
+    "gltf_triangle_count": 42078,
+    "mesh_definitions": 49,
+    "mesh_nodes": 49,
+    "material_definitions": 2,
+    "gltf_1k_total_bytes": 6018719,
+    "sha256_gltf": "f9292a9eff5bea32dde06356633da84615c508c9c0ee0246fc96c301cfd71fe8",
+    "status": "research only; not imported into Unity"
+  },
+  {
+    "id": "modular_industrial_pipes_01",
+    "name": "Modular Industrial Pipes 01",
+    "source": "https://polyhaven.com/a/modular_industrial_pipes_01",
+    "license": "CC0-1.0",
+    "authors": {
+      "Jorge Camacho": "All"
+    },
+    "api_polycount": 12340,
+    "gltf_triangle_count": 12340,
+    "mesh_definitions": 8,
+    "mesh_nodes": 8,
+    "material_definitions": 2,
+    "gltf_1k_total_bytes": 4823938,
+    "sha256_gltf": "455d3a0fe95b7900a08cbebb23cfb2c341672fcb67ae7355d776e53cfa3d0688",
+    "status": "research only; not imported into Unity"
+  },
+  {
+    "id": "office_notepads",
+    "name": "Office Notepads",
+    "source": "https://polyhaven.com/a/office_notepads",
+    "license": "CC0-1.0",
+    "authors": {
+      "Ulan Cabanilla": "All"
+    },
+    "api_polycount": 666,
+    "gltf_triangle_count": 666,
+    "mesh_definitions": 10,
+    "mesh_nodes": 10,
+    "material_definitions": 1,
+    "gltf_1k_total_bytes": 1332895,
+    "sha256_gltf": "dec1bd1f656e21bbda8957bcd19a715b1d1fbc5f9f153ada7ccdaf8407d97411",
+    "status": "research only; not imported into Unity"
+  },
+  {
+    "id": "steel_frame_shelves_03",
+    "name": "Steel Frame Shelves 03",
+    "source": "https://polyhaven.com/a/steel_frame_shelves_03",
+    "license": "CC0-1.0",
+    "authors": {
+      "Ulan Cabanilla": "All"
+    },
+    "api_polycount": 8396,
+    "gltf_triangle_count": 8396,
+    "mesh_definitions": 4,
+    "mesh_nodes": 4,
+    "material_definitions": 2,
+    "gltf_1k_total_bytes": 3563231,
+    "sha256_gltf": "5778bc40d135c7c02a62acdaa4be11fa856fe462c574cbc09033e78a269833d8",
+    "status": "research only; not imported into Unity"
+  }
+]

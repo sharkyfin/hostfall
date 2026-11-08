@@ -1,0 +1,163 @@
+:root { -unity-font-definition: initial; -unity-font: url("../Content/Fonts/NotoSans-Regular.ttf"); color: rgb(201, 211, 216); font-size: 16px; }
+#hud { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.task-card { position: absolute; right: 24px; top: 24px; width: 270px; max-width: 42%; padding: 11px 15px; background-color: rgba(10, 17, 23, .8); border-left-width: 2px; border-left-color: rgb(187, 154, 110); }
+.task-heading { color: rgb(135, 151, 162); font-size: 11px; margin-bottom: 4px; }
+.objective { white-space: normal; font-size: 14px; color: rgb(222, 228, 230); }
+.complete { color: rgb(143, 202, 169); }
+.task-action { display: none; white-space: normal; font-size: 12px; color: rgb(213, 182, 142); margin-top: 8px; }
+.overlay { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(3, 8, 12, .88); align-items: center; justify-content: center; }
+#terminal, #pause, #field-system, .context-help { display: none; }
+Button { background-color: rgb(29, 42, 52); color: rgb(201, 214, 222); border-width: 1px; border-color: rgb(52, 72, 85); border-radius: 4px; padding: 9px 14px; margin: 3px; font-size: 14px; }
+Button:hover { background-color: rgb(45, 63, 76); color: rgb(242, 241, 231); }
+Button:focus { border-color: rgb(201, 170, 126); }
+.quiet-button { background-color: rgba(0, 0, 0, 0); border-color: rgba(0, 0, 0, 0); color: rgb(155, 177, 191); }
+.quiet-button:hover { background-color: rgb(24, 39, 49); }
+.primary { background-color: rgb(203, 174, 131); color: rgb(19, 29, 35); border-color: rgb(203, 174, 131); padding: 13px; }
+.primary:hover { background-color: rgb(227, 199, 159); color: rgb(19, 29, 35); }
+.terminal-window { width: 90%; max-width: 1240px; height: 78%; background-color: rgb(10, 19, 25); border-width: 1px; border-color: rgb(53, 73, 86); }
+.window-header { height: 54px; flex-shrink: 0; flex-direction: row; align-items: center; padding: 6px 16px; border-bottom-width: 1px; border-bottom-color: rgb(35, 53, 65); }
+.host { flex-grow: 1; color: rgb(160, 197, 207); font-size: 13px; }
+.output { flex-grow: 1; padding: 20px 24px; }
+.output Label, #input-prompt, .command-input, .code-example { -unity-font: url("../Content/Fonts/RobotoMono-Regular.ttf"); }
+.output Label { white-space: normal; font-size: 14px; margin-bottom: 10px; }
+.muted { color: rgb(126, 152, 166); }
+.command-line { color: rgb(214, 181, 135); margin-top: 8px; }
+.result { color: rgb(193, 215, 207); }
+.error { color: rgb(226, 143, 127); }
+.input-row { min-height: 60px; flex-direction: row; align-items: center; padding: 8px 18px; border-top-width: 1px; border-top-color: rgb(35, 53, 65); }
+#input-prompt { color: rgb(214, 181, 135); font-size: 13px; }
+.command-input { flex-grow: 1; margin-left: 10px; }
+.command-input > .unity-text-field__input { background-color: rgb(10, 19, 25); color: rgb(226, 235, 232); border-width: 0; font-size: 15px; padding: 7px; }
+.pause-card { width: 340px; max-width: 92%; padding: 28px; background-color: rgb(13, 23, 31); border-top-width: 2px; border-top-color: rgb(187, 154, 110); }
+.title { color: rgb(232, 224, 207); font-size: 28px; margin-bottom: 22px; }
+.menu-row { flex-direction: row; }
+.menu-row Button { flex-grow: 1; flex-basis: 0; }
+.menu-bottom { margin-top: 14px; }
+.save-status { min-height: 21px; font-size: 11px; color: rgb(132, 170, 153); padding: 3px 6px; white-space: normal; }
+.controls-foldout { font-size: 12px; color: rgb(123, 146, 161); margin-top: 20px; }
+.controls-help { white-space: normal; font-size: 12px; color: rgb(138, 158, 170); padding: 10px 0; }
+.field-window { width: 94%; max-width: 1500px; height: 90%; background-color: rgb(12, 22, 30); border-width: 1px; border-color: rgb(39, 58, 72); border-radius: 7px; }
+.field-header { height: 59px; flex-shrink: 0; flex-direction: row; align-items: center; padding: 8px 18px; border-bottom-width: 1px; border-bottom-color: rgb(36, 54, 67); }
+.header-space { flex-grow: 1; }
+.field-tab { font-size: 16px; padding: 8px 18px; background-color: rgba(0, 0, 0, 0); border-color: rgba(0, 0, 0, 0); color: rgb(135, 157, 173); }
+.tab-selected { color: rgb(235, 223, 202); border-bottom-color: rgb(195, 161, 116); border-bottom-width: 2px; }
+.field-body { flex-grow: 1; flex-basis: 0; flex-direction: row; min-height: 0; }
+.archive-page { flex-grow: 1; flex-basis: 0; min-height: 0; }
+.domain-tabs { flex-direction: row; flex-shrink: 0; padding: 9px 20px; border-bottom-width: 1px; border-bottom-color: rgb(30, 48, 61); }
+.domain-tab { border-color: rgba(0, 0, 0, 0); background-color: rgba(0, 0, 0, 0); color: rgb(137, 161, 178); font-size: 13px; padding: 8px 12px; margin: 2px 4px 2px 0; }
+.domain-selected { color: rgb(218, 226, 229); background-color: rgb(27, 44, 57); }
+.quest-list { width: 25%; min-width: 200px; padding: 22px 12px; background-color: rgb(14, 26, 35); }
+.journal-entry { white-space: normal; -unity-text-align: middle-left; font-size: 15px; padding: 16px; margin: 0 0 8px; border-width: 0; background-color: rgba(0, 0, 0, 0); }
+.quest-selected { background-color: rgb(28, 43, 54); border-left-width: 2px; border-left-color: rgb(187, 154, 110); }
+.reading-pane { flex-grow: 1; flex-basis: 0; min-width: 0; padding: 26px 30px; border-left-width: 1px; border-left-color: rgb(31, 49, 62); }
+.reading-copy { width: 100%; max-width: 730px; align-self: flex-start; }
+.article-text { white-space: normal; font-size: 15px; color: rgb(185, 201, 212); margin-bottom: 14px; }
+.article-title { font-size: 28px; color: rgb(235, 227, 211); margin-bottom: 19px; }
+.article-summary { font-size: 17px; color: rgb(216, 224, 228); margin-bottom: 23px; }
+.section-heading { font-size: 13px; color: rgb(201, 177, 143); margin-top: 17px; margin-bottom: 9px; }
+.article-meta { font-size: 11px; color: rgb(119, 146, 163); }
+.quest-objective { font-size: 16px; color: rgb(229, 216, 192); background-color: rgb(25, 39, 48); border-left-width: 2px; border-left-color: rgb(187, 154, 110); padding: 13px 16px; margin: 12px 0 18px; }
+.code-example { font-size: 13px; color: rgb(169, 212, 191); background-color: rgb(7, 15, 21); padding: 15px; border-radius: 4px; }
+.read-more { margin-top: 12px; margin-bottom: 8px; font-size: 13px; color: rgb(139, 162, 179); }
+.read-more .article-text { margin-top: 10px; }
+.chip-row { flex-direction: row; flex-wrap: wrap; margin-bottom: 12px; }
+.link-chip { flex-grow: 0; font-size: 12px; white-space: normal; padding: 7px 11px; margin: 0 7px 7px 0; border-color: rgb(40, 62, 77); background-color: rgb(20, 34, 45); }
+.hint-button { align-self: flex-start; font-size: 13px; margin: 0 0 12px; }
+.knowledge-map-pane { width: 52%; padding: 17px 20px; }
+.knowledge-search { margin-bottom: 14px; }
+#knowledge-search > .unity-text-field__input { background-color: rgb(18, 33, 44); color: rgb(214, 225, 229); border-width: 1px; border-color: rgb(42, 65, 81); border-radius: 4px; padding: 8px; font-size: 14px; }
+#knowledge-search > .unity-text-field__label { min-width: 51px; color: rgb(126, 151, 170); font-size: 12px; }
+#graph-slot { flex-grow: 1; min-height: 240px; background-color: rgb(9, 19, 27); border-radius: 6px; }
+.knowledge-graph { flex-grow: 1; overflow: hidden; }
+.graph-node { position: absolute; width: 216px; height: 90px; margin: 0; padding: 16px; white-space: normal; border-radius: 7px; border-color: rgb(47, 71, 89); background-color: rgb(21, 38, 51); align-items: flex-start; justify-content: center; }
+.node-title { font-size: 16px; white-space: normal; color: rgb(198, 216, 225); }
+.node-state { font-size: 11px; color: rgb(112, 144, 161); margin-top: 7px; }
+.node-neighbor { border-color: rgb(91, 111, 122); }
+.node-selected { background-color: rgb(47, 47, 42); border-color: rgb(204, 170, 125); border-width: 2px; }
+.node-selected .node-title { color: rgb(235, 224, 201); }
+.node-practiced .node-state { color: rgb(134, 191, 162); }
+.graph-toolbar { flex-direction: row; align-items: center; justify-content: flex-end; min-height: 38px; }
+.graph-control { padding: 5px 12px; font-size: 14px; margin: 3px 0 3px 5px; }
+.knowledge-results { max-height: 110px; margin-top: 7px; }
+.knowledge-result { -unity-text-align: middle-left; font-size: 13px; background-color: rgba(0, 0, 0, 0); border-color: rgba(0, 0, 0, 0); padding: 7px 10px; margin: 0 0 3px; }
+.unity-base-field__label { color: rgb(133, 158, 172); }
+.unity-scroller--vertical { width: 6px; margin-left: 10px; background-color: rgb(16, 29, 38); }
+.unity-scroller__low-button, .unity-scroller__high-button, #unity-low-button, #unity-high-button { display: none; }
+.unity-base-slider__tracker { background-color: rgb(22, 38, 48); border-width: 0; }
+.unity-base-slider__dragger { background-color: rgb(65, 91, 108); border-width: 0; border-radius: 3px; min-width: 5px; }
+
+.unity-scroller--horizontal { display: none; }
+.unity-scroller--vertical { min-width: 6px; max-width: 6px; }
+.unity-scroller--vertical .unity-slider--vertical { min-width: 6px; width: 6px; margin: 0; }
+.unity-scroller--vertical .unity-base-slider__dragger { max-width: 5px; width: 5px; }
+
+/* A single control language: one shape, predictable spacing, one accent. */
+Button { border-radius: 5px; padding: 10px 14px; background-color: rgb(24,38,49); border-color: rgb(43,63,78); }
+Button:hover { background-color: rgb(34,55,69); border-color: rgb(75,127,140); }
+Button:active { background-color: rgb(44,72,83); }
+Button:disabled { opacity: .4; }
+.primary { background-color: rgb(95,176,182); border-color: rgb(95,176,182); color: rgb(8,22,29); }
+.primary:hover { background-color: rgb(125,203,207); border-color: rgb(125,203,207); color: rgb(8,22,29); }
+.pause-card { width: 370px; max-height: 87%; padding: 24px; border-top-width: 1px; border-top-color: rgb(73,124,137); border-radius: 7px; }
+.pause-card Button { min-height: 43px; margin: 4px; font-size: 14px; }
+.menu-row { margin: 0; }
+.menu-bottom { margin-top: 20px; }
+.title { font-size: 27px; margin: 4px 4px 23px; }
+#menu-page { display: none; }
+.menu-page-header { flex-direction: row; align-items: center; margin-bottom: 12px; }
+.menu-page-title { font-size: 18px; color: rgb(222,230,233); margin-left: 12px; }
+.back-button { font-size: 12px; min-height: 33px; padding: 7px 10px; }
+#menu-page-body { max-height: 570px; }
+.save-slot { align-items: flex-start; padding: 12px 14px; min-height: 80px; -unity-text-align: middle-left; }
+.slot-detail { font-size: 11px; color: rgb(131,159,171); white-space: normal; margin-top: 7px; }
+.menu-error { color: rgb(228,144,127); font-size: 12px; white-space: normal; margin: 12px 4px 0; }
+.binding-group { font-size: 12px; color: rgb(100,175,182); margin: 15px 8px 7px; }
+.binding-row { flex-direction: row; align-items: center; padding: 7px 8px; }
+.binding-row Label { font-size: 12px; white-space: normal; color: rgb(176,195,205); }
+.binding-row .binding-key { width: 90px; flex-shrink: 0; font-size: 11px; color: rgb(217,227,229); }
+
+.command-tip { margin-bottom: 14px; padding: 12px 16px; background-color: rgb(16,30,40); border-left-width: 2px; border-left-color: rgb(64,119,132); border-radius: 4px; }
+.command-tip .article-text { font-size: 14px; margin-bottom: 8px; }
+.command-tip .command-name { -unity-font: url("../Content/Fonts/RobotoMono-Regular.ttf"); color: rgb(111,192,195); font-size: 15px; }
+.command-tip .code-example { background-color: rgb(9,21,30); padding: 9px 12px; font-size: 12px; margin-bottom: 0; }
+
+/* Front end has its own full-screen layout; pause stays compact. */
+#main-menu, #introduction { display: none; }
+.front-screen { background-color: rgb(8,16,22); }
+.front-layout { width: 80%; max-width: 1120px; flex-direction: row; align-items: center; }
+.front-brand { flex-grow: 1; padding: 36px; border-left-width: 2px; border-left-color: rgb(81,137,147); }
+.front-title { font-size: 64px; color: rgb(229,234,232); }
+.front-panel { width: 330px; flex-shrink: 0; padding: 20px; }
+.front-panel Button { min-height: 43px; margin-bottom: 7px; }
+.front-caption { font-size: 11px; color: rgb(130,154,167); margin: 12px 5px 5px; white-space: normal; }
+.language-selected { border-color: rgb(105,188,194); background-color: rgb(34,65,76); color: rgb(210,235,230); }
+.introduction-screen { background-color: rgb(8,16,22); }
+.introduction-card { width: 550px; max-width: 88%; padding: 36px; border-left-width: 2px; border-left-color: rgb(82,158,168); }
+.introduction-card Button { margin-top: 20px; align-self: flex-start; min-width: 140px; }
+#menu-page-body Slider { margin: 8px 6px 18px; flex-direction: column; }
+#menu-page-body Slider > .unity-base-field__label { margin: 0 0 8px; font-size: 13px; white-space: normal; }
+#menu-page-body Slider > .unity-base-field__input { min-height: 32px; margin: 0; }
+#menu-page-body Slider .unity-base-slider__tracker { height: 3px; background-color: rgb(41,64,77); }
+#menu-page-body Slider .unity-base-slider__dragger { width: 9px; height: 20px; background-color: rgb(98,173,181); border-radius: 3px; border-width: 0; }
+#menu-page-body Slider .unity-base-slider__text-field { width: 54px; min-width: 54px; height: 32px; max-height: 32px; align-self: center; margin-left: 14px; }
+#menu-page-body Slider .unity-base-text-field__input { background-color: rgb(20,36,47); color: rgb(210,227,230); border-width: 1px; border-color: rgb(48,75,88); border-radius: 4px; padding: 4px 7px; font-size: 13px; }
+#menu-page-body Toggle { margin: 4px 6px 14px; min-height: 32px; align-items: center; }
+#menu-page-body Toggle > .unity-base-field__label { flex-grow: 1; flex-shrink: 1; flex-basis: 0; font-size: 13px; white-space: normal; margin-right: 12px; }
+#menu-page-body Toggle > .unity-base-field__input { flex-grow: 0; flex-shrink: 0; width: 26px; min-width: 26px; height: 26px; min-height: 26px; }
+#menu-page-body Toggle .unity-toggle__checkmark { width: 22px; height: 22px; background-color: rgb(20,36,47); border-width: 1px; border-color: rgb(66,101,116); border-radius: 4px; -unity-background-image-tint-color: rgb(186,228,223); }
+#menu-page-body Toggle:checked .unity-toggle__checkmark { background-color: rgb(41,79,88); border-color: rgb(98,173,181); }
+.domain-tabs { flex-wrap: wrap; }
+.domain-tab { font-size: 12px; padding: 7px 9px; }
+.knowledge-library-pane { width: 30%; min-width: 235px; padding: 18px; background-color: rgb(11,21,29); }
+.knowledge-results { flex-grow: 1; max-height: none; min-height: 0; }
+#knowledge-progress { margin: 0 4px 14px; white-space: normal; }
+.library-entry { align-items: flex-start; -unity-text-align: middle-left; background-color: rgba(0,0,0,0); border-color: rgba(0,0,0,0); padding: 11px 12px; margin: 0 0 5px; flex-shrink: 0; }
+.library-entry Label { white-space: normal; font-size: 14px; }
+.library-entry .library-state { font-size: 10px; color: rgb(119,159,169); margin-top: 5px; }
+.library-selected { border-left-width: 2px; border-left-color: rgb(98,174,181); background-color: rgb(23,40,51); }
+.library-next { font-size: 12px; color: rgb(145,165,175); margin-top: 24px; }
+.library-state { font-size: 11px; color: rgb(115,144,160); }
+.front-dialog { background-color: rgb(8,16,22); }
+
+.automatic-command { flex-grow: 1; white-space: normal; color: rgb(104, 192, 195); }
+.routine-status { padding-left: 24px; padding-top: 8px; padding-bottom: 8px; color: rgb(146, 174, 181); font-size: 14px; }
