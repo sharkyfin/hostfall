@@ -1,3 +1,4 @@
+using System.Linq;
 using Hostfall.Core;
 using Hostfall.Player;
 using Hostfall.Simulation;
@@ -42,9 +43,14 @@ namespace Hostfall.World
                 if(Physics.Linecast(player.Eye,aim,out var hit,CollisionLayers.WorldMask,QueryTriggerInteraction.Ignore)&&hit.collider.GetComponentInParent<WatcherController>()!=robot) continue;
                 selected=robot; nearest=delta.magnitude;
             }
-            if(selected==null) { ui.ShowActionNotice("Наведитесь на робота в прямой видимости"); return false; }
+            if(selected==null)
+            {
+                bool anyActive = robots != null && robots.Any(r => r != null && !r.IsDestroyed && r.State.Mode != WatcherMode.Offline && r.State.Mode != WatcherMode.Maintenance);
+                ui.ShowActionNotice(anyActive ? "Наведитесь на цель" : "Нет активных целей");
+                return false;
+            }
             bool applied=world.Actions.TryPulse(selected.Id,true);
-            if(applied) { selected.Tick(0); world.NotifyTerminalChanged(); ui.ShowActionNotice("Помеха · 3 с без движения, затем замедление"); }
+            if(applied) { selected.Tick(0); world.NotifyTerminalChanged(); ui.ShowActionNotice("Импульс успешен"); }
             return applied;
         }
     }

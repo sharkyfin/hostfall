@@ -21,12 +21,13 @@ namespace Hostfall.UI
         private WorldSaveController persistence;
         private FieldSystemUI fieldUI;
         private FieldSession field;
-        private VisualElement terminal, pause, hud, menuMain, menuPage, front, introduction;
+        private VisualElement terminal, pause, hud, menuMain, menuPage, front, introduction, facilityMap, mapSectorsContainer;
         private GamePreferences preferences;
         public GamePreferences Preferences => preferences;
         public bool HasSession => entered || persistence.Loaded;
         private Label objective, prompt, host, inputPrompt, taskHeading, menuTitle, pageTitle, menuError;
-        private Button resume, restart;
+        private Label locationSector, locationRoom, mapPlayerStatus;
+        private Button resume, restart, openMap, closeMap;
         private Label typedCommand, routineStatus;
         private DeviceId activeTerminal;
         private string interactionText="", actionNotice="";
@@ -35,12 +36,20 @@ namespace Hostfall.UI
         private int renderedRevision;
         private string page = "", confirmSlot = "";
         private bool entered, confirmingNewGame;
+        private PlayerMotor playerMotor;
+        private bool isMapOpen;
+        private int terminalOpenedFrame = -1;
         public void Initialize(FacilitySimulation model, ControlState state, FacilityInput inputBindings, FieldSession progress, FieldSystemUI fieldView, WorldSaveController saveController)
         {
             simulation=model; controls=state; bindings=inputBindings; field=progress; fieldUI=fieldView; persistence=saveController;
             var root=GetComponent<UIDocument>().rootVisualElement;
             terminal=root.Q("terminal"); pause=root.Q("pause"); hud=root.Q("hud"); front=root.Q("main-menu"); introduction=root.Q("introduction");
-            preferences=new GamePreferences(UnityEngine.Object.FindAnyObjectByType<PlayerMotor>());
+            facilityMap=root.Q("facility-map"); locationSector=root.Q<Label>("location-sector"); locationRoom=root.Q<Label>("location-room");
+            mapPlayerStatus=root.Q<Label>("map-player-status"); mapSectorsContainer=root.Q("map-sectors-container");
+            openMap=root.Q<Button>("open-map"); if (openMap != null) openMap.clicked += OpenMap;
+            closeMap=root.Q<Button>("close-map"); if (closeMap != null) closeMap.clicked += CloseMap;
+            playerMotor=UnityEngine.Object.FindAnyObjectByType<PlayerMotor>();
+            preferences=new GamePreferences(playerMotor);
             objective=root.Q<Label>("objective"); prompt=root.Q<Label>("interaction"); host=root.Q<Label>("host"); inputPrompt=root.Q<Label>("input-prompt");
             taskHeading=root.Q<Label>("task-heading"); menuTitle=root.Q<Label>("menu-title"); resume=root.Q<Button>("resume");
             menuMain=root.Q("menu-main"); menuPage=root.Q("menu-page"); pageTitle=root.Q<Label>("menu-page-title"); pageBody=root.Q<ScrollView>("menu-page-body"); menuError=root.Q<Label>("menu-error");
@@ -70,6 +79,7 @@ namespace Hostfall.UI
         public void OpenTerminal(DeviceId id)
         {
             if(!simulation.Terminals.CanRun(id)) { ShowActionNotice(simulation.Terminals.Status(id)); return; }
+            terminalOpenedFrame = Time.frameCount;
             customSession = null;
             activeTerminal=id; session=new TerminalSession(simulation,id); memory=simulation[id].Terminal;
             simulation.Terminals.Begin(id);
@@ -83,34 +93,87 @@ namespace Hostfall.UI
         {
             public string Host;
             public string Address;
+            public string WorkingDir;
+            public TerminalOsFamily OsFamily;
             public string[] Commands;
             public string[] Outputs;
             public int Step;
             public int Typed;
             public float Wait;
+            public float SpeedMultiplier;
+            public bool IsPaused;
+            public string PromptFormat;
+            public string EventId;
             public Action OnComplete;
         }
         private CustomSession? customSession;
 
+        public void OpenTerminalScenario(TerminalScenario scenario, Action onComplete = null)
+        {
+            if (scenario == null) return;
+            terminalOpenedFrame = Time.frameCount;
+            session = null; memory = null;
+
+            var cmds = new string[scenario.Steps.Count];
+            var outs = new string[scenario.Steps.Count];
+            for (int i = 0; i < scenario.Steps.Count; i++)
+            {
+                cmds[i] = scenario.Steps[i].Command;
+                outs[i] = scenario.Steps[i].Output;
+            }
+
+            customSession = new CustomSession
+            {
+                Host = scenario.Hostname,
+                Address = scenario.IpAddress,
+                WorkingDir = scenario.WorkingDirectory,
+                OsFamily = scenario.OsFamily,
+                Commands = cmds,
+                Outputs = outs,
+                Step = 0,
+                Typed = 0,
+                Wait = 0,
+                SpeedMultiplier = 1.0f,
+                IsPaused = false,
+                PromptFormat = scenario.FormatPrompt(),
+                EventId = scenario.WorldEventId,
+                OnComplete = onComplete
+            };
+            output.Clear();
+            host.text = scenario.GetOsTitle();
+            inputPrompt.text = scenario.FormatPrompt();
+            typedCommand.text = "";
+            routineStatus.text = "Авторизация канала · Скорость: 1.0x [SPACE - пауза, [ / ] - скорость]";
+            controls.SetMode(ControlMode.Terminal);
+            rootFocus();
+        }
+
         public void OpenTerminalSession(string hostName, string address, string[] commands, string[] outputs, Action onComplete = null)
         {
+            terminalOpenedFrame = Time.frameCount;
             session = null; memory = null;
             customSession = new CustomSession
             {
                 Host = hostName,
                 Address = address,
+                WorkingDir = "~",
+                OsFamily = TerminalOsFamily.LinuxBash,
                 Commands = commands ?? Array.Empty<string>(),
                 Outputs = outputs ?? Array.Empty<string>(),
                 Step = 0,
                 Typed = 0,
                 Wait = 0,
+                SpeedMultiplier = 1.0f,
+                IsPaused = false,
+                PromptFormat = "operator@" + hostName + ":~$ ",
+                EventId = null,
                 OnComplete = onComplete
             };
             output.Clear();
             host.text = hostName.ToUpperInvariant() + " / " + address;
             inputPrompt.text = "operator@" + hostName + ":~$ ";
             typedCommand.text = "";
-            routineStatus.text = "Авторизация канала";
+            routineStatus.text = "Авторизация канала · Скорость: 1.0x [SPACE - пауза, [ / ] - скорость]";
             controls.SetMode(ControlMode.Terminal);
             rootFocus();
         }
@@ -118,12 +181,7 @@ namespace Hostfall.UI
         private void rootFocus()=>GetComponent<UIDocument>().rootVisualElement.Q<Button>("close-terminal").Focus();
         private void CloseTerminal()
         {
-            if (customSession.HasValue && customSession.Value.OnComplete != null)
-            {
-                var callback = customSession.Value.OnComplete;
-                customSession = null;
-                callback();
-            }
+            // Do not call OnComplete for unfinished session on exit (ADR 0007 / Rule 1.1 Item B)
             session = null;
             memory = null;
             customSession = null;
@@ -153,6 +211,32 @@ namespace Hostfall.UI
         {
             if(bindings==null) return;
             RefreshActionNotice();
+
+            if(locationSector != null && locationRoom != null)
+            {
+                if(playerMotor == null) playerMotor = UnityEngine.Object.FindAnyObjectByType<PlayerMotor>();
+                Vector3 playerPos = playerMotor != null ? playerMotor.transform.position : 
+                    (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+                var curSector = GetCurrentSectorInfo(playerPos);
+                locationSector.text = curSector.Code;
+                locationRoom.text = curSector.Name;
+            }
+
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if(kb != null && kb.mKey.wasPressedThisFrame)
+            {
+                if(isMapOpen)
+                {
+                    CloseMap();
+                    return;
+                }
+                else if(controls.Mode == ControlMode.Exploring || controls.Mode == ControlMode.Paused)
+                {
+                    OpenMap();
+                    return;
+                }
+            }
+
             if(controls.Mode==ControlMode.Terminal && memory!=null)
             {
                 bool fastForward = bindings != null && (bindings.Interact.WasPressedThisFrame() || bindings.Pulse.WasPressedThisFrame());
@@ -163,7 +247,7 @@ namespace Hostfall.UI
             {
                 TickCustomSession(Time.unscaledDeltaTime);
             }
-            if(controls.Mode==ControlMode.Terminal)
+            if(controls.Mode==ControlMode.Terminal && Time.frameCount > terminalOpenedFrame)
             {
                 bool ePressed = UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame;
                 if(bindings.Escape.WasPressedThisFrame() || ePressed)
@@ -174,6 +258,7 @@ namespace Hostfall.UI
             }
             if(bindings.Load.WasPressedThisFrame() && controls.Mode==ControlMode.MainMenu) { OpenPage("load"); return; }
             if(!bindings.Escape.WasPressedThisFrame()) return;
+            if(isMapOpen) { CloseMap(); return; }
             if(controls.Mode==ControlMode.Field) fieldUI.Close();
             else if(controls.Mode==ControlMode.Terminal) CloseTerminal();
             else if(page.Length>0) Back();
@@ -182,6 +267,7 @@ namespace Hostfall.UI
         }
         private void RefreshMode(ControlMode mode)
         {
+            if(mode!=ControlMode.Exploring && mode!=ControlMode.Paused && isMapOpen) CloseMap();
             hud.style.display=mode==ControlMode.Exploring?DisplayStyle.Flex:DisplayStyle.None;
             if(mode==ControlMode.Exploring) entered=true;
             if(mode!=ControlMode.Paused&&mode!=ControlMode.MainMenu) ResetPage();
@@ -323,13 +409,63 @@ namespace Hostfall.UI
         }
         private void RenderLine(string text,string style)
         {
-            var label=new Label(text) { enableRichText=false, selection={isSelectable=true} }; label.AddToClassList(style); output.Add(label);
+            var label=new Label(text) { enableRichText=true, selection={isSelectable=true} }; label.AddToClassList(style); output.Add(label);
         }
+
+        private static string FormatTerminalOutput(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "";
+            return raw
+                .Replace("[OK]", "<color=#44FF77>[OK]</color>")
+                .Replace("[SUCCESS]", "<color=#44FF77>[SUCCESS]</color>")
+                .Replace("[NOMINAL]", "<color=#44FF77>[NOMINAL]</color>")
+                .Replace("[ACTIVE]", "<color=#44FF77>[ACTIVE]</color>")
+                .Replace("[UP]", "<color=#44FF77>[UP]</color>")
+                .Replace("[FAIL]", "<color=#FF4444>[FAIL]</color>")
+                .Replace("[ERROR]", "<color=#FF4444>[ERROR]</color>")
+                .Replace("[CRITICAL]", "<color=#FF4444>[CRITICAL]</color>")
+                .Replace("[ALERT]", "<color=#FF8844>[ALERT]</color>")
+                .Replace("[DOWN]", "<color=#FF8844>[DOWN]</color>")
+                .Replace("[EXPLOIT]", "<color=#FFAA22>[EXPLOIT]</color>")
+                .Replace("[PAYLOAD]", "<color=#FFAA22>[PAYLOAD]</color>")
+                .Replace("[ACTION REQUIRED]", "<color=#FFCC00>[ACTION REQUIRED]</color>");
+        }
+
         public void TickCustomSession(float dt)
         {
             if(!customSession.HasValue || dt <= 0 || float.IsNaN(dt)) return;
             var cs = customSession.Value;
             if(cs.Step >= cs.Commands.Length) return;
+
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.spaceKey.wasPressedThisFrame)
+                {
+                    cs.IsPaused = !cs.IsPaused;
+                    routineStatus.text = cs.IsPaused
+                        ? "Сеанс приостановлен [SPACE - продолжить]"
+                        : $"Авторизация канала · Скорость: {cs.SpeedMultiplier:F1}x [SPACE - пауза, [ / ] - скорость]";
+                    customSession = cs;
+                    return;
+                }
+                if (kb.leftBracketKey.wasPressedThisFrame)
+                {
+                    cs.SpeedMultiplier = Mathf.Max(0.5f, cs.SpeedMultiplier - 0.25f);
+                    routineStatus.text = $"Авторизация канала · Скорость: {cs.SpeedMultiplier:F1}x [SPACE - пауза, [ / ] - скорость]";
+                    customSession = cs;
+                }
+                else if (kb.rightBracketKey.wasPressedThisFrame)
+                {
+                    cs.SpeedMultiplier = Mathf.Min(4.0f, cs.SpeedMultiplier + 0.5f);
+                    routineStatus.text = $"Авторизация канала · Скорость: {cs.SpeedMultiplier:F1}x [SPACE - пауза, [ / ] - скорость]";
+                    customSession = cs;
+                }
+            }
+
+            if (cs.IsPaused) return;
+
+            string pfx = string.IsNullOrEmpty(cs.PromptFormat) ? ("operator@" + cs.Host + ":~$ ") : cs.PromptFormat;
 
             bool fastForward = bindings != null && (bindings.Interact.WasPressedThisFrame() || bindings.Pulse.WasPressedThisFrame());
             if (fastForward)
@@ -337,10 +473,10 @@ namespace Hostfall.UI
                 while (cs.Step < cs.Commands.Length)
                 {
                     string fcmd = cs.Commands[cs.Step];
-                    RenderLine("operator@" + cs.Host + ":~$ " + fcmd, "prompt");
+                    RenderLine("<color=#55AAFF>" + pfx + "</color>" + fcmd, "prompt");
                     if (cs.Step < cs.Outputs.Length && !string.IsNullOrEmpty(cs.Outputs[cs.Step]))
                     {
-                        RenderLine(cs.Outputs[cs.Step], "result");
+                        RenderLine(FormatTerminalOutput(cs.Outputs[cs.Step]), "result");
                     }
                     cs.Step++;
                 }
@@ -357,7 +493,7 @@ namespace Hostfall.UI
             }
 
             string cmd = cs.Commands[cs.Step];
-            cs.Wait += Mathf.Min(dt, 0.1f);
+            cs.Wait += Mathf.Min(dt * cs.SpeedMultiplier, 0.25f);
 
             if(cs.Typed < cmd.Length)
             {
@@ -375,10 +511,10 @@ namespace Hostfall.UI
             if(cs.Wait < 0.06f) { customSession = cs; return; }
 
             // Commit command
-            RenderLine("operator@" + cs.Host + ":~$ " + cmd, "prompt");
+            RenderLine("<color=#55AAFF>" + pfx + "</color>" + cmd, "prompt");
             if(cs.Step < cs.Outputs.Length && !string.IsNullOrEmpty(cs.Outputs[cs.Step]))
             {
-                RenderLine(cs.Outputs[cs.Step], "result");
+                RenderLine(FormatTerminalOutput(cs.Outputs[cs.Step]), "result");
             }
             output.schedule.Execute(()=>output.scrollOffset=new Vector2(0,Mathf.Max(0,output.verticalScroller.highValue)));
 
@@ -399,6 +535,221 @@ namespace Hostfall.UI
 
             customSession = cs;
         }
+        public struct SectorMapEntry
+        {
+            public string Code;
+            public string Name;
+            public string Detail;
+            public string Connections;
+            public Bounds BoundingBox;
+        }
+
+        private static readonly SectorMapEntry[] FacilitySectors = new SectorMapEntry[]
+        {
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 00",
+                Name = "Операторская (SOC)",
+                Detail = "Точка эвакуации и мониторинга комплекса. Терминал WS-07, главный энергощит.",
+                Connections = "Связь: Сектор 01 (Служебный коридор)",
+                BoundingBox = new Bounds(new Vector3(0, 1.5f, -3.5f), new Vector3(12f, 8f, 13f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 01",
+                Name = "Серверный зал и коридор",
+                Detail = "Служебный проход, узел распределения охлаждения, терминал CORE-01.",
+                Connections = "Связь: Сектор 00 ↔ Сектор 02",
+                BoundingBox = new Bounds(new Vector3(0, 2f, 10f), new Vector3(12f, 8f, 14f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 02",
+                Name = "Вычислительный узел",
+                Detail = "Стойки квантовых вычислений, консоль DATA-01, смотровой мезонин.",
+                Connections = "Связь: Сектор 01 ↔ Арсенал ↔ Сектор 03 ↔ Сектор 04",
+                BoundingBox = new Bounds(new Vector3(0, 2.5f, 27.5f), new Vector3(14f, 8f, 21f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 02-А",
+                Name = "Оружейный арсенал [SEC-02]",
+                Detail = "Тактический дробовик ARC-12, стеллажи боеприпасов, шкафы амуниции.",
+                Connections = "Связь: Прямой доступ из Сектора 02",
+                BoundingBox = new Bounds(new Vector3(11f, 2f, 26f), new Vector3(8f, 8f, 12f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 03",
+                Name = "Энергоцентр",
+                Detail = "Трансформаторные подстанции, распределительные шины, консоль SUB-01.",
+                Connections = "Связь: Сектор 02 ↔ Служебный обход",
+                BoundingBox = new Bounds(new Vector3(-16.5f, 3f, 28f), new Vector3(19f, 9f, 20f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 04",
+                Name = "Квантовый узел",
+                Detail = "Криогенный шлюз CRYO-01, эстакадный мост, транзитные коммуникационные траншеи.",
+                Connections = "Связь: Сектор 02 ↔ Сектор 05 (Логистика)",
+                BoundingBox = new Bounds(new Vector3(0, 3f, 50f), new Vector3(20f, 9f, 24f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 05",
+                Name = "Логистический центр",
+                Detail = "Грузовой терминал, контейнерные платформы, патрули автономных стражей.",
+                Connections = "Связь: Сектор 04 ↔ Сектор 06 ↔ Обратный шлюз Сектора 09",
+                BoundingBox = new Bounds(new Vector3(-5f, 4f, 78.5f), new Vector3(42f, 10f, 35f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 06",
+                Name = "Завод робототехники",
+                Detail = "Линии автоматической сборки, подвесные мостки, калибровочные станции.",
+                Connections = "Связь: Сектор 05 ↔ Сектор 07 ↔ Сектор 08 (Нейроархив)",
+                BoundingBox = new Bounds(new Vector3(33.5f, 5f, 80f), new Vector3(38f, 12f, 32f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 07",
+                Name = "Цитадель безопасности",
+                Detail = "Укрепленный блокпост, тяжелые рельсовые турели RailEye, охранный рубеж.",
+                Connections = "Связь: Сектор 06 ↔ Скоростной переход в Сектор 00",
+                BoundingBox = new Bounds(new Vector3(35f, 4f, 38f), new Vector3(40f, 10f, 50f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 08",
+                Name = "Нейроархив",
+                Detail = "Хранилище матриц личности и бэкапов архитектуры SUPER, монолиты памяти.",
+                Connections = "Связь: Сектор 06 ↔ Сектор 09 (Облачный узел)",
+                BoundingBox = new Bounds(new Vector3(71f, 4f, 52f), new Vector3(36f, 10f, 70f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 09",
+                Name = "Облачный узел управления",
+                Detail = "Релейные мачты синхронизации, реакторный распределитель, терминалы фазового доступа.",
+                Connections = "Связь: Сектор 08 ↔ Сектор 10 ↔ Шлюз в Логистику (С05)",
+                BoundingBox = new Bounds(new Vector3(36f, 4f, 105f), new Vector3(45f, 10f, 45f))
+            },
+            new SectorMapEntry
+            {
+                Code = "СЕКТОР 10",
+                Name = "Ядро суперкомпьютера",
+                Detail = "Главная камера центрального процессора. Арена с автономным боссом ATLAS-0.",
+                Connections = "Связь: Финальный рубеж комплекса NORTHLINE",
+                BoundingBox = new Bounds(new Vector3(10f, 6f, 160f), new Vector3(55f, 15f, 80f))
+            }
+        };
+
+        public static SectorMapEntry GetCurrentSectorInfo(Vector3 pos)
+        {
+            if (FacilitySectors[3].BoundingBox.Contains(pos))
+                return FacilitySectors[3];
+
+            for (int i = 0; i < FacilitySectors.Length; i++)
+            {
+                if (i == 3) continue;
+                if (FacilitySectors[i].BoundingBox.Contains(pos))
+                    return FacilitySectors[i];
+            }
+
+            float closestDist = float.MaxValue;
+            int bestIdx = 0;
+            for (int i = 0; i < FacilitySectors.Length; i++)
+            {
+                float d = Vector3.Distance(pos, FacilitySectors[i].BoundingBox.center);
+                if (d < closestDist)
+                {
+                    closestDist = d;
+                    bestIdx = i;
+                }
+            }
+            return FacilitySectors[bestIdx];
+        }
+
+        public void OpenMap()
+        {
+            if (facilityMap == null) return;
+            isMapOpen = true;
+            facilityMap.style.display = DisplayStyle.Flex;
+            BuildMapCards();
+            closeMap?.Focus();
+        }
+
+        public void CloseMap()
+        {
+            if (facilityMap == null) return;
+            isMapOpen = false;
+            facilityMap.style.display = DisplayStyle.None;
+            if (controls != null && controls.Mode == ControlMode.Paused)
+                resume?.Focus();
+        }
+
+        private void BuildMapCards()
+        {
+            if (mapSectorsContainer == null) return;
+            mapSectorsContainer.Clear();
+
+            Vector3 playerPos = playerMotor != null ? playerMotor.transform.position : 
+                (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+            var currentSector = GetCurrentSectorInfo(playerPos);
+
+            if (mapPlayerStatus != null)
+            {
+                mapPlayerStatus.text = $"{currentSector.Code} · {currentSector.Name}   [ X: {playerPos.x:F1}  Y: {playerPos.y:F1}  Z: {playerPos.z:F1} ]";
+            }
+
+            for (int i = 0; i < FacilitySectors.Length; i++)
+            {
+                var entry = FacilitySectors[i];
+                bool isCurrent = entry.Code == currentSector.Code;
+
+                var card = new VisualElement();
+                card.AddToClassList("map-sector-card");
+                if (isCurrent)
+                {
+                    card.AddToClassList("map-sector-current");
+                }
+
+                var head = new VisualElement();
+                head.AddToClassList("map-card-head");
+
+                var codeLabel = new Label(entry.Code);
+                codeLabel.AddToClassList("map-card-code");
+                head.Add(codeLabel);
+
+                if (isCurrent)
+                {
+                    var badge = new Label("ВЫ ЗДЕСЬ");
+                    badge.AddToClassList("map-card-badge");
+                    badge.AddToClassList("badge-here");
+                    head.Add(badge);
+                }
+
+                card.Add(head);
+
+                var title = new Label(entry.Name);
+                title.AddToClassList("map-card-title");
+                card.Add(title);
+
+                var detail = new Label(entry.Detail);
+                detail.AddToClassList("map-card-detail");
+                card.Add(detail);
+
+                if (!string.IsNullOrEmpty(entry.Connections))
+                {
+                    var loop = new Label(entry.Connections);
+                    loop.AddToClassList("map-card-loop");
+                    card.Add(loop);
+                }
+
+                mapSectorsContainer.Add(card);
+            }
+        }
+
         private void OnDestroy()
         { if(controls!=null) controls.Changed-=RefreshMode; if(simulation!=null) simulation.StateChanged-=RefreshSimulation; if(persistence!=null) persistence.StatusChanged-=OnSaveResult; }
     }

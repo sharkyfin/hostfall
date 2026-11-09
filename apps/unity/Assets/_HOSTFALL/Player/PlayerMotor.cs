@@ -31,6 +31,7 @@ namespace Hostfall.Player
         public float Pitch { get; private set; }
         public float LookSensitivity { get; set; } = 1;
         public bool IsSprinting => input != null && input.Sprint.IsPressed() && planarVelocity.sqrMagnitude > 1f;
+        public Vector3 PlanarVelocity => planarVelocity;
         public Vector3 Eye => transform.position + Vector3.up * 1.64f + transform.forward * .2f;
         public Quaternion ViewRotation => Quaternion.Euler(Pitch, transform.eulerAngles.y, 0);
         public void Initialize(FacilityInput bindings, ControlState state,ActionState actionState=null)

@@ -2,6 +2,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using Hostfall.Core;
+using Hostfall.Devices;
 using Hostfall.Persistence;
 using Hostfall.Player;
 using Hostfall.Simulation;
@@ -191,6 +192,289 @@ namespace Hostfall.Tests
             robot.Tick(0.5f);
             Assert.That(robot.IsDestroyed, Is.True);
             Assert.That(robot.State.Mode, Is.EqualTo(WatcherMode.Offline));
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator EmpGrenadeStunsRobotsAndCrawlerSentry()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var robot = Enemy("watcher-r17");
+            Assert.That(robot.IsStunned, Is.False);
+            Assert.That(robot.Health, Is.EqualTo(100f));
+
+            // Stun robot with EMP
+            robot.ApplyEmpStun(7f);
+            Assert.That(robot.IsStunned, Is.True);
+            Assert.That(robot.State.Mode, Is.EqualTo(WatcherMode.Jammed));
+
+            // Crawler sentry test
+            var sentry = Object.FindAnyObjectByType<TrackedSentryController>();
+            if (sentry != null)
+            {
+                Assert.That(sentry.IsStunned, Is.False);
+                Assert.That(sentry.Health, Is.EqualTo(160f));
+                Assert.That(sentry.IsDestroyed, Is.False);
+
+                // Apply EMP Stun to Sentry
+                sentry.ApplyEmpStun(7f);
+                Assert.That(sentry.IsStunned, Is.True);
+
+                // Apply damage
+                sentry.TakeDamage(60f);
+                Assert.That(sentry.Health, Is.EqualTo(100f));
+                Assert.That(sentry.IsDestroyed, Is.False);
+
+                // Fatal damage
+                sentry.TakeDamage(100f);
+                Assert.That(sentry.Health, Is.EqualTo(0f));
+                Assert.That(sentry.IsDestroyed, Is.True);
+            }
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator AmmoPickupsReplenishPlayerWeapon()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var controls = Object.FindAnyObjectByType<ControlState>();
+            controls.SetMode(ControlMode.Exploring);
+
+            var player = Object.FindAnyObjectByType<PlayerMotor>();
+            var weapon = player.GetComponent<PlayerWeapon>();
+            Assert.That(weapon, Is.Not.Null);
+
+            weapon.Equip();
+            Assert.That(weapon.HasWeapon, Is.True);
+
+            var ammoPickups = Object.FindObjectsByType<AmmoBoxPickup>(FindObjectsSortMode.None);
+            Assert.That(ammoPickups.Length, Is.GreaterThan(0), "Facility must contain staged ammo pickups");
+
+            var box = ammoPickups[0];
+            Assert.That(box.IsPickedUp, Is.False);
+
+            // Initial ammo: magazine 6, reserve 18 (full)
+            // Fire 1 shot to create room in magazine
+            Assert.That(weapon.TryFire(), Is.True);
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(5));
+
+            // Reload to pull from reserve
+            Assert.That(weapon.StartReload(), Is.True);
+            yield return new WaitForSeconds(1.5f);
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(6));
+            Assert.That(weapon.ReserveAmmo, Is.EqualTo(17)); // 18 - 1 = 17
+
+            // Now pickup ammo box (+12 ammo, capped at max 18 reserve)
+            box.Interact();
+            Assert.That(box.IsPickedUp, Is.True);
+            Assert.That(weapon.ReserveAmmo, Is.EqualTo(18));
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator BulwarkSentryShieldsFrontalAttacksAndStuns()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var bulwark = Object.FindAnyObjectByType<BulwarkSentryController>();
+            Assert.That(bulwark, Is.Not.Null, "Expected E08 Bulwark Sentry in Sector 07");
+
+            Assert.That(bulwark.Health, Is.EqualTo(180f));
+            Assert.That(bulwark.IsStunned, Is.False);
+            Assert.That(bulwark.IsShieldActive, Is.True);
+            Assert.That(bulwark.IsDestroyed, Is.False);
+
+            // Position player directly in front of Bulwark facing it
+            var player = Object.FindAnyObjectByType<PlayerMotor>();
+            player.transform.position = bulwark.transform.position + bulwark.transform.forward * 3.5f;
+            Physics.SyncTransforms();
+
+            // Frontal attack with active shield: 100 damage is absorbed by 85% -> takes 15 damage
+            bulwark.TakeDamage(100f);
+            Assert.That(bulwark.Health, Is.EqualTo(165f));
+
+            // Apply EMP stun: drops shield
+            bulwark.ApplyEmpStun(6f);
+            Assert.That(bulwark.IsStunned, Is.True);
+            Assert.That(bulwark.IsShieldActive, Is.False);
+
+            // While stunned, takes full damage
+            bulwark.TakeDamage(165f);
+            Assert.That(bulwark.Health, Is.EqualTo(0f));
+            Assert.That(bulwark.IsDestroyed, Is.True);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator JammerRobotEmitsRfAndStunsOrDestroys()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var jammer = Object.FindAnyObjectByType<JammerRobotController>();
+            Assert.That(jammer, Is.Not.Null, "Expected E09 Jammer Robot in Sector 07");
+
+            Assert.That(jammer.Health, Is.EqualTo(100f));
+            Assert.That(jammer.IsStunned, Is.False);
+            Assert.That(jammer.IsJammingActive, Is.True);
+
+            jammer.ApplyEmpStun(6f);
+            Assert.That(jammer.IsStunned, Is.True);
+            Assert.That(jammer.IsJammingActive, Is.False);
+
+            jammer.TakeDamage(100f);
+            Assert.That(jammer.Health, Is.EqualTo(0f));
+            Assert.That(jammer.IsDestroyed, Is.True);
+            Assert.That(jammer.IsJammingActive, Is.False);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator PulseSidearmFiringAndWeaponSwitching()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var controls = Object.FindAnyObjectByType<ControlState>();
+            controls.SetMode(ControlMode.Exploring);
+
+            var player = Object.FindAnyObjectByType<PlayerMotor>();
+            var weapon = player.GetComponent<PlayerWeapon>();
+            Assert.That(weapon, Is.Not.Null);
+
+            weapon.Equip();
+            Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.Arc12Shotgun));
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(6));
+
+            // Unlock and equip CIRRUS Pulse Sidearm
+            weapon.UnlockPulseSidearm();
+            Assert.That(weapon.HasPulseSidearm, Is.True);
+            Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.CirrusPulseSidearm));
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(15));
+            Assert.That(weapon.ReserveAmmo, Is.EqualTo(45));
+
+            // Fire 1 pulse shot
+            Assert.That(weapon.TryFire(), Is.True);
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(14));
+
+            // Switch back to ARC-12
+            weapon.SwitchWeapon(ActiveWeaponType.Arc12Shotgun);
+            Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.Arc12Shotgun));
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(6));
+
+            // Switch back to CIRRUS: verifies magazine preservation
+            weapon.SwitchWeapon(ActiveWeaponType.CirrusPulseSidearm);
+            Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.CirrusPulseSidearm));
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(14));
+
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator RailEyeTurretTracksTargetAndStuns()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var railEye = Object.FindAnyObjectByType<RailEyeTurretController>();
+            Assert.That(railEye, Is.Not.Null, "Expected E12 Rail-Eye Turret in Sector 09");
+
+            Assert.That(railEye.Health, Is.EqualTo(120f));
+            Assert.That(railEye.IsStunned, Is.False);
+            Assert.That(railEye.IsDestroyed, Is.False);
+
+            railEye.ApplyEmpStun(6f);
+            Assert.That(railEye.IsStunned, Is.True);
+
+            railEye.TakeDamage(120f);
+            Assert.That(railEye.Health, Is.EqualTo(0f));
+            Assert.That(railEye.IsDestroyed, Is.True);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator BastionSentrySuppressionBurstAndStomp()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var bastion = Object.FindAnyObjectByType<BastionSentryController>();
+            Assert.That(bastion, Is.Not.Null, "Expected E15 Bastion-4 Assault Sentry in Sector 09");
+
+            Assert.That(bastion.Health, Is.EqualTo(240f));
+            Assert.That(bastion.IsStunned, Is.False);
+            Assert.That(bastion.IsDestroyed, Is.False);
+
+            var player = Object.FindAnyObjectByType<PlayerMotor>();
+            player.transform.position = bastion.transform.position + bastion.transform.forward * 4f;
+            Physics.SyncTransforms();
+
+            // Normal damage from front
+            bastion.TakeDamage(40f);
+            Assert.That(bastion.Health, Is.EqualTo(200f));
+
+            // Flank to rear: rear reactor takes 2.5x damage (40 * 2.5 = 100)
+            player.transform.position = bastion.transform.position - bastion.transform.forward * 4f;
+            Physics.SyncTransforms();
+            bastion.TakeDamage(40f);
+            Assert.That(bastion.Health, Is.EqualTo(100f));
+
+            bastion.ApplyEmpStun(6f);
+            Assert.That(bastion.IsStunned, Is.True);
+
+            bastion.TakeDamage(100f);
+            Assert.That(bastion.Health, Is.EqualTo(0f));
+            Assert.That(bastion.IsDestroyed, Is.True);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator AtlasBossPhaseTransitionsAndWeakpoints()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var atlas = Object.FindAnyObjectByType<AtlasBossController>();
+            Assert.That(atlas, Is.Not.Null, "Expected BOSS ATLAS-0 in Sector 10");
+
+            Assert.That(atlas.Health, Is.EqualTo(600f));
+            Assert.That(atlas.Phase, Is.EqualTo(AtlasBossPhase.Phase1_OrbitalSweep));
+            Assert.That(atlas.IsStaggered, Is.False);
+            Assert.That(atlas.IsDestroyed, Is.False);
+
+            // Deal 160 damage -> health 440 -> transition to Phase 2
+            atlas.TakeDamage(160f);
+            Assert.That(atlas.Health, Is.EqualTo(440f));
+            Assert.That(atlas.Phase, Is.EqualTo(AtlasBossPhase.Phase2_CryoShockwave));
+
+            // Deal 150 damage -> health 290 -> transition to Phase 3
+            atlas.TakeDamage(150f);
+            Assert.That(atlas.Health, Is.EqualTo(290f));
+            Assert.That(atlas.Phase, Is.EqualTo(AtlasBossPhase.Phase3_CoreExposed));
+
+            // EMP stun causes 40 damage
+            atlas.ApplyEmpStun(6f);
+            Assert.That(atlas.Health, Is.EqualTo(250f));
+
+            // Final blow -> Phase 4 Staggered shutdown
+            atlas.TakeDamage(250f);
+            Assert.That(atlas.Health, Is.EqualTo(0f));
+            Assert.That(atlas.Phase, Is.EqualTo(AtlasBossPhase.Phase4_StaggeredShutdown));
+            Assert.That(atlas.IsStaggered, Is.True);
+            Assert.That(atlas.IsDestroyed, Is.True);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest] public IEnumerator TitanbreakerFiringAndRecoil()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+            var controls = Object.FindAnyObjectByType<ControlState>();
+            controls.SetMode(ControlMode.Exploring);
+
+            var player = Object.FindAnyObjectByType<PlayerMotor>();
+            var weapon = player.GetComponent<PlayerWeapon>();
+            Assert.That(weapon, Is.Not.Null);
+
+            weapon.UnlockTitanbreaker();
+            Assert.That(weapon.HasTitanbreaker, Is.True);
+            Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.TitanbreakerHeavyInductor));
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(3));
+            Assert.That(weapon.ReserveAmmo, Is.EqualTo(9));
+
+            // Fire 1 heavy inductor shot
+            Assert.That(weapon.TryFire(), Is.True);
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(2));
+
+            // Switch to ARC-12 and verify
+            weapon.SwitchWeapon(ActiveWeaponType.Arc12Shotgun);
+            Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.Arc12Shotgun));
+
+            // Switch back to TITANBREAKER and verify state preserved
+            weapon.SwitchWeapon(ActiveWeaponType.TitanbreakerHeavyInductor);
+            Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.TitanbreakerHeavyInductor));
+            Assert.That(weapon.CurrentAmmo, Is.EqualTo(2));
+
             LogAssert.NoUnexpectedReceived();
         }
     }

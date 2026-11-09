@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Hostfall.World
 {
-    public sealed class WatcherController : MonoBehaviour
+    public sealed class WatcherController : MonoBehaviour, IDamageable
     {
         public const string CoreProcess="super-node --leader --replicate";
         [SerializeField] private string enemyId="watcher-r17";
@@ -28,6 +28,8 @@ namespace Hostfall.World
         private float suspicion;
         private float searchTimer;
         private float windupTimer;
+        private float stunTimer;
+        private float staggerTimer;
         private Vector3 lastKnownPosition;
         private WatcherMode previousMode = WatcherMode.Patrol;
 
@@ -36,6 +38,7 @@ namespace Hostfall.World
         private static bool audioGenerated;
 
         public string Id=>enemyId;
+        public string DamageableId => enemyId;
         public string AnimationState=>animationState;
         public WatcherState State { get; }=new();
         public float Suspicion => suspicion;
@@ -49,12 +52,15 @@ namespace Hostfall.World
 
         public bool IsDestroyed => isDestroyed;
         public float Health => currentHealth;
+        public bool IsStunned => stunTimer > 0f;
 
         public void TakeDamage(float amount)
         {
             if (isDestroyed) return;
             currentHealth -= amount;
+            staggerTimer = 0.45f;
             PlayCue(clipJammed, 0.85f);
+            SpawnHitSparks();
             if (currentHealth <= 0f)
             {
                 isDestroyed = true;
@@ -72,6 +78,33 @@ namespace Hostfall.World
                 suspicion = 1f;
                 if (player != null) lastKnownPosition = player.transform.position;
             }
+        }
+
+        public void ApplyEmpStun(float duration = 7.0f)
+        {
+            if (isDestroyed) return;
+            stunTimer = duration;
+            staggerTimer = 0.5f;
+            State.SetMode(WatcherMode.Jammed);
+            if (indicator != null)
+            {
+                indicator.enabled = true;
+                indicator.color = new Color(0.2f, 0.7f, 1.0f);
+            }
+            PlayCue(clipJammed, 0.95f);
+            SpawnHitSparks();
+        }
+
+        private void SpawnHitSparks()
+        {
+            var sparkObj = new GameObject("Robot Spark Burst");
+            sparkObj.transform.position = sensor != null ? sensor.position : transform.position + Vector3.up * 1.2f;
+            var l = sparkObj.AddComponent<Light>();
+            l.type = LightType.Point;
+            l.color = new Color(0.4f, 0.85f, 1.0f);
+            l.range = 3.5f;
+            l.intensity = 4.0f;
+            Destroy(sparkObj, 0.12f);
         }
 
         public void Configure(Transform eye,Light lamp,Animator model=null,string id="watcher-r17",Vector3? first=null,Vector3? last=null,Vector2? xb=null,Vector2? zb=null)
@@ -206,7 +239,11 @@ namespace Hostfall.World
             bool relay=Id=="watcher-r17";
             bool disabled = relay ? (!simulation.AutomatedRoute && simulation.SourceIsolated) : !simulation[DeviceId.Core01].HasProcess(CoreProcess);
             bool powered = relay && simulation.AutomatedRoute ? true : simulation[relay ? DeviceId.Edge01 : DeviceId.Core01].Powered;
-            bool jammed = simulation.Actions.Stun(Id) > 0;
+
+            if (stunTimer > 0f) stunTimer -= dt;
+            if (staggerTimer > 0f) staggerTimer -= dt;
+
+            bool jammed = simulation.Actions.Stun(Id) > 0 || stunTimer > 0f || staggerTimer > 0f;
 
             if (disabled)
             {

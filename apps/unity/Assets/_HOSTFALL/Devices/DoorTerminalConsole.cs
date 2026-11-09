@@ -12,6 +12,7 @@ namespace Hostfall.Devices
         [SerializeField] private FacilityDoor targetDoor;
         [SerializeField] private FacilityDoor[] additionalDoors = Array.Empty<FacilityDoor>();
         [SerializeField] private DeviceId deviceId;
+        [SerializeField] private string scenarioId;
         [SerializeField] private string hostname = "data01";
         [SerializeField] private string ipAddress = "10.17.0.101";
         [SerializeField] private string[] commands = Array.Empty<string>();
@@ -33,11 +34,22 @@ namespace Hostfall.Devices
         public DeviceId DeviceId => deviceId;
         public bool Completed => completed;
         public bool ShouldConnect => !completed;
-        public string Prompt => completed ? completedPromptText : promptText;
+        public string Prompt
+        {
+            get
+            {
+                if (completed) return completedPromptText;
+                if ((deviceId == DeviceId.Data01 || scenarioId == "t07_data") && !DataCartridgeState.IsInserted)
+                    return "[!] ТРЕБУЕТСЯ КАРТРИДЖ NL-CART-044 [E - диагностика]";
+                if ((deviceId == DeviceId.Pwr01 || scenarioId == "t08_pwr") && !CoolingValveState.IsOpen)
+                    return "[!] ПЕРЕГРЕВ КОНТУРА 842 K · ТРЕБУЕТСЯ КЛАПАН V-102 [E - диагностика]";
+                return promptText;
+            }
+        }
 
         public void Configure(FacilityDoor door, string host, string ip, string[] cmds, string[] outs, string notice,
             string prompt = null, Renderer screen = null, Material activeMat = null, Material completeMat = null, DeviceId devId = DeviceId.Ws07,
-            TextMesh statusTxt = null, TextMesh bodyTxt = null, Renderer led = null)
+            TextMesh statusTxt = null, TextMesh bodyTxt = null, Renderer led = null, string scenId = null)
         {
             targetDoor = door;
             hostname = host;
@@ -53,6 +65,7 @@ namespace Hostfall.Devices
             screenStatusText = statusTxt;
             screenBodyText = bodyTxt;
             statusLedRenderer = led;
+            scenarioId = scenId;
         }
 
         public void Initialize(FacilityUI interfaceUI, FacilitySimulation sim = null)
@@ -88,6 +101,32 @@ namespace Hostfall.Devices
 
         public void Interact()
         {
+            if (ui == null) ui = FindAnyObjectByType<FacilityUI>();
+
+            TerminalScenario scenario = null;
+            if (!string.IsNullOrEmpty(scenarioId))
+                TerminalScenarioCatalog.TryGetScenario(scenarioId, out scenario);
+            else if ((uint)deviceId != 0)
+                TerminalScenarioCatalog.TryGetScenario(deviceId.ToString(), out scenario);
+
+            bool prerequisiteMet = true;
+            if (deviceId == DeviceId.Data01 || scenarioId == "t07_data")
+            {
+                if (!DataCartridgeState.IsInserted)
+                {
+                    prerequisiteMet = false;
+                    TerminalScenarioCatalog.TryGetScenario("t07_data_unmet", out scenario);
+                }
+            }
+            else if (deviceId == DeviceId.Pwr01 || scenarioId == "t08_pwr")
+            {
+                if (!CoolingValveState.IsOpen)
+                {
+                    prerequisiteMet = false;
+                    TerminalScenarioCatalog.TryGetScenario("t08_pwr_unmet", out scenario);
+                }
+            }
+
             if (completed)
             {
                 if (targetDoor != null) targetDoor.UnlockAndOpen();
@@ -96,14 +135,30 @@ namespace Hostfall.Devices
                     foreach (var door in additionalDoors)
                         if (door != null) door.UnlockAndOpen();
                 }
-                if (ui == null) ui = FindAnyObjectByType<FacilityUI>();
-                if (ui != null) ui.OpenTerminalSession(hostname, ipAddress, commands, outputs, null);
+
+                if (ui != null)
+                {
+                    if (scenario != null) ui.OpenTerminalScenario(scenario, null);
+                    else ui.OpenTerminalSession(hostname, ipAddress, commands, outputs, null);
+                }
                 return;
             }
-            if (ui == null) ui = FindAnyObjectByType<FacilityUI>();
+
+            if (!prerequisiteMet)
+            {
+                if (ui != null && scenario != null)
+                {
+                    ui.OpenTerminalScenario(scenario, null);
+                }
+                return;
+            }
+
             if (ui != null)
             {
-                ui.OpenTerminalSession(hostname, ipAddress, commands, outputs, OnCompleted);
+                if (scenario != null)
+                    ui.OpenTerminalScenario(scenario, OnCompleted);
+                else
+                    ui.OpenTerminalSession(hostname, ipAddress, commands, outputs, OnCompleted);
             }
             else
             {
@@ -129,6 +184,10 @@ namespace Hostfall.Devices
         private void OnCompleted()
         {
             completed = true;
+
+            string eventId = "EVT_" + (string.IsNullOrEmpty(scenarioId) ? deviceId.ToString() : scenarioId).ToUpperInvariant();
+            TerminalScenarioCatalog.MarkEventExecuted(eventId);
+
             if (targetDoor != null) targetDoor.UnlockAndOpen();
             if (additionalDoors != null)
             {

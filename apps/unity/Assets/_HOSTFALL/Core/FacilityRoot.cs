@@ -109,6 +109,24 @@ namespace Hostfall.Core
             ui.Initialize(Simulation, controls, input, Field, fieldUI, persistence);
             foreach (var dtc in FindObjectsByType<DoorTerminalConsole>(FindObjectsSortMode.None))
                 dtc.Initialize(ui, Simulation);
+            foreach (var drone in FindObjectsByType<LensDroneController>(FindObjectsSortMode.None))
+                drone.Initialize(player, ui, allWatchers);
+            foreach (var bridge in FindObjectsByType<RetractableBridgeController>(FindObjectsSortMode.None))
+                bridge.Initialize(ui);
+            foreach (var cartridge in FindObjectsByType<DataCartridgeItem>(FindObjectsSortMode.None))
+                cartridge.Initialize(ui);
+            foreach (var slot in FindObjectsByType<DataCartridgeSlot>(FindObjectsSortMode.None))
+                slot.Initialize(ui);
+            foreach (var valve in FindObjectsByType<CoolingValve>(FindObjectsSortMode.None))
+                valve.Initialize(ui);
+            foreach (var router in FindObjectsByType<UpsPowerRouter>(FindObjectsSortMode.None))
+                router.Initialize(ui);
+            foreach (var yard in FindObjectsByType<CargoSwitchyard>(FindObjectsSortMode.None))
+                yard.Initialize(ui);
+            foreach (var ammo in FindObjectsByType<AmmoBoxPickup>(FindObjectsSortMode.None))
+                ammo.Initialize(ui);
+            foreach (var crawler in FindObjectsByType<TrackedSentryController>(FindObjectsSortMode.None))
+                crawler.Initialize(player, ui, controls);
             var weapon = player.GetComponent<PlayerWeapon>() ?? player.gameObject.AddComponent<PlayerWeapon>();
             weapon.Initialize(player, input, controls, ui);
             var actionController=gameObject.AddComponent<FacilityActionController>();

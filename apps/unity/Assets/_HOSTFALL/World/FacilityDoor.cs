@@ -153,6 +153,11 @@ namespace Hostfall.World
                 opened = !opened;
                 PlayDoorSound();
             }
+            else if (!IsUnlocked)
+            {
+                var ui = UnityEngine.Object.FindAnyObjectByType<Hostfall.UI.FacilityUI>();
+                if (ui != null) ui.ShowActionNotice(lockedPromptText);
+            }
         }
 
         private void Update()

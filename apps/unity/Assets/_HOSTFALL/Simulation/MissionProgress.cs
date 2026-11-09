@@ -29,17 +29,17 @@ namespace Hostfall.Simulation
             new ObjectiveDefinition(ObjectiveCondition.InspectProcesses, DeviceId.Ws07, "Выясните, что управляет наблюдателем."),
             new ObjectiveDefinition(ObjectiveCondition.IsolateCacheSource, DeviceId.Ws07, "Отключите источник управляющих заданий."),
             new ObjectiveDefinition(ObjectiveCondition.InspectProcesses, DeviceId.Core01, "Проверьте оставшийся контур управления в серверной."));
-        public static MissionDefinition ActionRoute => new("Данные участка у вас. Маршрут до серверной открыт.",
-            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Ws07,"Доберитесь до рабочего терминала в операторской."),
-            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Edge01,"Прорвитесь к терминалу шлюза в проходе."),
-            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Core01,"Доберитесь до терминала серверной и заберите карту участка."));
-        public static MissionDefinition FacilityCampaign => new("Комплекс полностью разблокирован. Служебный контур доступен.",
-            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Ws07,"Доберитесь до рабочего терминала в операторской."),
-            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Edge01,"Прорвитесь к терминалу шлюза в проходе."),
-            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Core01,"Доберитесь до терминала серверной и отключите защитные ворота."),
-            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Data01,"Пройдите в Сектор 02 и разблокируйте энергоцентр на терминале DATA-01."),
-            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Pwr01,"Проникните в Сектор 03 и активируйте подстанцию на распределителе PWR-01."),
-            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Qnt01,"Доберитесь до квантового релея QNT-01 в Секторе 04 и откройте служебный контур."));
+        public static MissionDefinition ActionRoute => new("Данные участка получены. Маршрут открыт.",
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Ws07,"Сектор 00 · Операторская // Терминал WS-07"),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Edge01,"Сектор 01 · Служебный проход // Терминал EDGE-01"),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Core01,"Сектор 01 · Серверная // Терминал CORE-01"));
+        public static MissionDefinition FacilityCampaign => new("Комплекс разблокирован. Служебный контур доступен.",
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Ws07,"Сектор 00 · Операторская // Терминал WS-07"),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Edge01,"Сектор 01 · Служебный проход // Терминал EDGE-01"),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Core01,"Сектор 01 · Серверная // Терминал CORE-01"),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Data01,"Сектор 02 · Вычислительный склеп // Терминал DATA-01"),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Pwr01,"Сектор 03 · Энергоцентр // Распределитель PWR-01"),
+            new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Qnt01,"Сектор 04 · Квантовый нексус // Релей QNT-01"));
     }
     public sealed class MissionProgress
     {

@@ -7,9 +7,32 @@ using UnityEngine;
 
 namespace Hostfall.Player
 {
+    public enum ActiveWeaponType
+    {
+        Arc12Shotgun = 0,
+        CirrusPulseSidearm = 1,
+        TitanbreakerHeavyInductor = 2
+    }
+
     public sealed class PlayerWeapon : MonoBehaviour
     {
         [SerializeField] private bool hasWeapon = false;
+        [SerializeField] private ActiveWeaponType activeWeapon = ActiveWeaponType.Arc12Shotgun;
+        [SerializeField] private bool hasPulseSidearm = false;
+        [SerializeField] private bool hasTitanbreaker = false;
+        [SerializeField] private int currentAmmo = 6;
+        [SerializeField] private int magazineCapacity = 6;
+        [SerializeField] private int reserveAmmo = 18;
+        [SerializeField] private int maxReserveAmmo = 18;
+        [SerializeField] private int empGrenadeCount = 2;
+
+        private int arc12Current = 6;
+        private int arc12Reserve = 18;
+        private int cirrusCurrent = 15;
+        private int cirrusReserve = 45;
+        private int titanCurrent = 3;
+        private int titanReserve = 9;
+
         private PlayerMotor motor;
         private FacilityInput input;
         private ControlState controls;
@@ -19,13 +42,107 @@ namespace Hostfall.Player
         private Light muzzleLight;
         private AudioSource audioSource;
         private static AudioClip clipFire;
+        private static AudioClip clipPulseFire;
+        private static AudioClip clipTitanFire;
+        private static AudioClip clipDryFire;
+        private static AudioClip clipReload;
+        private static AudioClip clipThrow;
         private static bool audioGenerated;
 
         private float cooldownTimer;
         private float recoilAmount;
         private float flashTimer;
+        private bool isReloading;
+        private float reloadTimer;
 
         public bool HasWeapon => hasWeapon;
+        public ActiveWeaponType ActiveWeapon => activeWeapon;
+        public bool HasPulseSidearm => hasPulseSidearm;
+        public bool HasTitanbreaker => hasTitanbreaker;
+        public int CurrentAmmo => currentAmmo;
+        public int ReserveAmmo => reserveAmmo;
+        public int EmpGrenades => empGrenadeCount;
+        public bool IsReloading => isReloading;
+        public bool IsAmmoFull => reserveAmmo >= maxReserveAmmo && currentAmmo >= magazineCapacity;
+
+        public void UnlockPulseSidearm()
+        {
+            hasPulseSidearm = true;
+            Equip();
+            SwitchWeapon(ActiveWeaponType.CirrusPulseSidearm);
+        }
+
+        public void UnlockTitanbreaker()
+        {
+            hasTitanbreaker = true;
+            Equip();
+            SwitchWeapon(ActiveWeaponType.TitanbreakerHeavyInductor);
+        }
+
+        public void SwitchWeapon(ActiveWeaponType weaponType)
+        {
+            if (activeWeapon == weaponType) return;
+            if (weaponType == ActiveWeaponType.CirrusPulseSidearm && !hasPulseSidearm) return;
+            if (weaponType == ActiveWeaponType.TitanbreakerHeavyInductor && !hasTitanbreaker) return;
+
+            if (activeWeapon == ActiveWeaponType.Arc12Shotgun)
+            {
+                arc12Current = currentAmmo;
+                arc12Reserve = reserveAmmo;
+            }
+            else if (activeWeapon == ActiveWeaponType.CirrusPulseSidearm)
+            {
+                cirrusCurrent = currentAmmo;
+                cirrusReserve = reserveAmmo;
+            }
+            else
+            {
+                titanCurrent = currentAmmo;
+                titanReserve = reserveAmmo;
+            }
+
+            activeWeapon = weaponType;
+            if (activeWeapon == ActiveWeaponType.Arc12Shotgun)
+            {
+                magazineCapacity = 6;
+                maxReserveAmmo = 18;
+                currentAmmo = arc12Current;
+                reserveAmmo = arc12Reserve;
+                if (ui != null) ui.ShowActionNotice($"Выбран ARC-12 Shockgun ({currentAmmo}/{reserveAmmo})");
+            }
+            else if (activeWeapon == ActiveWeaponType.CirrusPulseSidearm)
+            {
+                magazineCapacity = 15;
+                maxReserveAmmo = 45;
+                currentAmmo = cirrusCurrent;
+                reserveAmmo = cirrusReserve;
+                if (ui != null) ui.ShowActionNotice($"Выбран CIRRUS Pulse Sidearm ({currentAmmo}/{reserveAmmo})");
+            }
+            else
+            {
+                magazineCapacity = 3;
+                maxReserveAmmo = 9;
+                currentAmmo = titanCurrent;
+                reserveAmmo = titanReserve;
+                if (ui != null) ui.ShowActionNotice($"Выбран W10 TITANBREAKER Heavy Inductor ({currentAmmo}/{reserveAmmo})");
+            }
+
+            if (audioSource != null && clipReload != null) audioSource.PlayOneShot(clipReload, 0.4f);
+        }
+
+        public int AddAmmo(int amount)
+        {
+            if (amount <= 0) return 0;
+            int space = maxReserveAmmo - reserveAmmo;
+            int toAdd = Mathf.Min(space, amount);
+            reserveAmmo += toAdd;
+            return toAdd;
+        }
+
+        public void AddEmpGrenades(int count)
+        {
+            empGrenadeCount = Mathf.Min(4, empGrenadeCount + count);
+        }
 
         public void Initialize(PlayerMotor playerMotor, FacilityInput facilityInput, ControlState controlState, FacilityUI facilityUI)
         {
@@ -82,7 +199,6 @@ namespace Hostfall.Player
                 for (int i = 0; i < samples; i++)
                 {
                     float t = i / (float)rate;
-                    // Punchy low transient + electrical discharge crackle
                     float punch = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(120f, 40f, t / 0.15f) * t) * Mathf.Exp(-t * 18f);
                     float noise = (UnityEngine.Random.value * 2f - 1f) * Mathf.Exp(-t * 22f);
                     float arc = Mathf.Sin(2f * Mathf.PI * 1800f * t) * Mathf.Exp(-t * 9f) * 0.25f;
@@ -90,6 +206,70 @@ namespace Hostfall.Player
                 }
                 clipFire = AudioClip.Create("ARC12_Fire", samples, 1, rate, false);
                 clipFire.SetData(data, 0);
+
+                // CIRRUS Pulse Sidearm Fire (High-tech discharge)
+                int pulseSamples = (int)(rate * 0.18f);
+                var pulseData = new float[pulseSamples];
+                for (int i = 0; i < pulseSamples; i++)
+                {
+                    float t = (float)i / rate;
+                    float freq = Mathf.Lerp(1900f, 420f, t / 0.18f);
+                    float wave = Mathf.Sin(2f * Mathf.PI * freq * t) * Mathf.Exp(-t * 22f);
+                    pulseData[i] = wave * 0.75f;
+                }
+                clipPulseFire = AudioClip.Create("CIRRUS_Pulse_Fire", pulseSamples, 1, rate, false);
+                clipPulseFire.SetData(pulseData, 0);
+
+                // TITANBREAKER Heavy Inductor Fire (Deep inductive thunder charge)
+                int titanSamples = (int)(rate * 0.52f);
+                var titanData = new float[titanSamples];
+                for (int i = 0; i < titanSamples; i++)
+                {
+                    float t = (float)i / rate;
+                    float subBass = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(75f, 28f, t / 0.52f) * t) * Mathf.Exp(-t * 8f);
+                    float crack = (UnityEngine.Random.value * 2f - 1f) * Mathf.Exp(-t * 26f);
+                    float buzz = Mathf.Sin(2f * Mathf.PI * 880f * t) * Mathf.Exp(-t * 15f) * 0.4f;
+                    titanData[i] = Mathf.Clamp(subBass * 0.8f + crack * 0.6f + buzz, -1f, 1f);
+                }
+                clipTitanFire = AudioClip.Create("TITANBREAKER_Fire", titanSamples, 1, rate, false);
+                clipTitanFire.SetData(titanData, 0);
+
+                // Dry Fire Click
+                int drySamples = (int)(rate * 0.12f);
+                var dryData = new float[drySamples];
+                for (int i = 0; i < drySamples; i++)
+                {
+                    float t = i / (float)rate;
+                    dryData[i] = Mathf.Sin(2f * Mathf.PI * 1200f * t) * Mathf.Exp(-t * 60f) * 0.5f;
+                }
+                clipDryFire = AudioClip.Create("ARC12_DryClick", drySamples, 1, rate, false);
+                clipDryFire.SetData(dryData, 0);
+
+                // Reload Pump & Chambering
+                int reloadSamples = (int)(rate * 0.85f);
+                var reloadData = new float[reloadSamples];
+                for (int i = 0; i < reloadSamples; i++)
+                {
+                    float t = i / (float)rate;
+                    float click1 = t < 0.3f ? Mathf.Sin(2f * Mathf.PI * 450f * t) * Mathf.Exp(-t * 25f) : 0f;
+                    float click2 = t > 0.45f ? Mathf.Sin(2f * Mathf.PI * 850f * (t - 0.45f)) * Mathf.Exp(-(t - 0.45f) * 35f) : 0f;
+                    float rattle = (Mathf.PerlinNoise(t * 800f, 0f) - 0.5f) * Mathf.Exp(-t * 6f) * 0.2f;
+                    reloadData[i] = Mathf.Clamp(click1 * 0.6f + click2 * 0.7f + rattle, -1f, 1f);
+                }
+                clipReload = AudioClip.Create("ARC12_Reload", reloadSamples, 1, rate, false);
+                clipReload.SetData(reloadData, 0);
+
+                // Throw Whoosh
+                int throwSamples = (int)(rate * 0.25f);
+                var throwData = new float[throwSamples];
+                for (int i = 0; i < throwSamples; i++)
+                {
+                    float t = i / (float)rate;
+                    throwData[i] = Mathf.Sin(2f * Mathf.PI * 180f * t) * Mathf.Sin(Mathf.Clamp01(t / 0.25f) * Mathf.PI) * 0.4f;
+                }
+                clipThrow = AudioClip.Create("SFX_Grenade_Throw", throwSamples, 1, rate, false);
+                clipThrow.SetData(throwData, 0);
+
                 audioGenerated = true;
             }
         }
@@ -196,6 +376,50 @@ namespace Hostfall.Player
                 weaponRoot.rotation = motor.ViewRotation;
             }
 
+            if (isReloading)
+            {
+                reloadTimer -= Time.deltaTime;
+                if (reloadTimer <= 0f)
+                {
+                    int needed = magazineCapacity - currentAmmo;
+                    int transfer = Mathf.Min(needed, reserveAmmo);
+                    currentAmmo += transfer;
+                    reserveAmmo -= transfer;
+                    isReloading = false;
+                    if (ui != null)
+                    {
+                        string wName = activeWeapon == ActiveWeaponType.Arc12Shotgun ? "ARC-12" : activeWeapon == ActiveWeaponType.CirrusPulseSidearm ? "CIRRUS" : "TITANBREAKER";
+                        ui.ShowActionNotice($"{wName} готов к бою ({currentAmmo}/{reserveAmmo})");
+                    }
+                }
+            }
+
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && hasWeapon && controls.CanExplore)
+            {
+                if (kb.digit1Key.wasPressedThisFrame) SwitchWeapon(ActiveWeaponType.Arc12Shotgun);
+                if (kb.digit2Key.wasPressedThisFrame && hasPulseSidearm) SwitchWeapon(ActiveWeaponType.CirrusPulseSidearm);
+                if (kb.digit3Key.wasPressedThisFrame && hasTitanbreaker) SwitchWeapon(ActiveWeaponType.TitanbreakerHeavyInductor);
+                if (kb.tabKey.wasPressedThisFrame)
+                {
+                    if (hasTitanbreaker)
+                    {
+                        SwitchWeapon(activeWeapon switch
+                        {
+                            ActiveWeaponType.Arc12Shotgun => hasPulseSidearm ? ActiveWeaponType.CirrusPulseSidearm : ActiveWeaponType.TitanbreakerHeavyInductor,
+                            ActiveWeaponType.CirrusPulseSidearm => ActiveWeaponType.TitanbreakerHeavyInductor,
+                            _ => ActiveWeaponType.Arc12Shotgun
+                        });
+                    }
+                    else if (hasPulseSidearm)
+                    {
+                        SwitchWeapon(activeWeapon == ActiveWeaponType.Arc12Shotgun ? ActiveWeaponType.CirrusPulseSidearm : ActiveWeaponType.Arc12Shotgun);
+                    }
+                }
+                if (kb.rKey.wasPressedThisFrame) StartReload();
+                if (kb.gKey.wasPressedThisFrame) ThrowEmpGrenade();
+            }
+
             // Handle Firing Input
             if (hasWeapon && controls.CanExplore && input != null && input.Fire != null && input.Fire.WasPressedThisFrame())
             {
@@ -205,55 +429,215 @@ namespace Hostfall.Player
 
         public bool TryFire()
         {
-            if (!hasWeapon || !controls.CanExplore || cooldownTimer > 0) return false;
+            if (!hasWeapon || !controls.CanExplore || cooldownTimer > 0 || isReloading) return false;
 
-            cooldownTimer = 0.65f;
-            recoilAmount = 0.12f;
-            motor.AddPitchKick(-1.8f);
-
-            if (muzzleLight != null)
+            if (currentAmmo <= 0)
             {
-                muzzleLight.enabled = true;
-                flashTimer = 0.06f;
-            }
-
-            if (audioSource != null && clipFire != null)
-            {
-                audioSource.PlayOneShot(clipFire, 0.95f);
-            }
-
-            // 5-Pellet Cone Spread Raycast (effective range 8.5m)
-            const int pelletCount = 5;
-            const float maxRange = 8.5f;
-            const float damage = 55f; // 2 shots = 110 dmg -> destroys 100 HP robot!
-
-            Vector3 origin = motor.Eye;
-            var hitRobots = new System.Collections.Generic.HashSet<WatcherController>();
-
-            for (int i = 0; i < pelletCount; i++)
-            {
-                Vector3 spread = i == 0 ? Vector3.zero : UnityEngine.Random.insideUnitSphere * 0.045f;
-                Vector3 dir = (motor.ViewRotation * (Vector3.forward + spread)).normalized;
-
-                if (Physics.Raycast(origin, dir, out var hit, maxRange, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+                cooldownTimer = 0.35f;
+                if (audioSource != null && clipDryFire != null)
                 {
-                    var watcher = hit.collider.GetComponentInParent<WatcherController>();
-                    if (watcher != null)
+                    audioSource.PlayOneShot(clipDryFire, 0.75f);
+                }
+                if (reserveAmmo > 0)
+                {
+                    StartReload();
+                }
+                else if (ui != null)
+                {
+                    string wName = activeWeapon == ActiveWeaponType.Arc12Shotgun ? "ARC-12" : activeWeapon == ActiveWeaponType.CirrusPulseSidearm ? "CIRRUS" : "TITANBREAKER";
+                    ui.ShowActionNotice($"[!] НЕТ ПАТРОНОВ ДЛЯ {wName} · НАЙДИТЕ БОЕПРИПАСЫ В ОРУЖЕЙНОЙ");
+                }
+                return false;
+            }
+
+            currentAmmo--;
+
+            if (activeWeapon == ActiveWeaponType.TitanbreakerHeavyInductor)
+            {
+                cooldownTimer = 1.1f;
+                recoilAmount = 0.24f;
+                motor.AddPitchKick(-3.2f);
+
+                if (muzzleLight != null)
+                {
+                    muzzleLight.color = new Color(0.6f, 0.25f, 1.0f);
+                    muzzleLight.enabled = true;
+                    flashTimer = 0.12f;
+                }
+
+                if (audioSource != null && clipTitanFire != null)
+                {
+                    audioSource.PlayOneShot(clipTitanFire, 1.0f);
+                }
+
+                // Heavy Inductor High-Penetration Beam (range 35m, 120 damage)
+                Vector3 origin = motor.Eye;
+                Vector3 dir = motor.ViewRotation * Vector3.forward;
+                if (Physics.Raycast(origin, dir, out var hit, 35.0f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+                {
+                    var target = hit.collider.GetComponentInParent<IDamageable>();
+                    if (target != null)
                     {
-                        hitRobots.Add(watcher);
+                        target.TakeDamage(120f);
+                        if (ui != null)
+                        {
+                            if (target.IsDestroyed) ui.ShowActionNotice("Цель нейтрализована");
+                            else ui.ShowActionNotice("Импульс индуктора");
+                        }
                     }
                     SpawnImpactFX(hit.point, hit.normal);
                 }
             }
-
-            // Apply 55 damage to each hit robot (2 shots = 110 dmg -> kills 100 HP robot!)
-            foreach (var watcher in hitRobots)
+            else if (activeWeapon == ActiveWeaponType.CirrusPulseSidearm)
             {
-                watcher.TakeDamage(damage);
-                if (ui != null && watcher.IsDestroyed)
+                cooldownTimer = 0.22f;
+                recoilAmount = 0.045f;
+                motor.AddPitchKick(-0.45f);
+
+                if (muzzleLight != null)
                 {
-                    ui.ShowActionNotice("Угроза нейтрализована: " + watcher.Id.ToUpperInvariant());
+                    muzzleLight.color = new Color(0.2f, 0.85f, 1.0f);
+                    muzzleLight.enabled = true;
+                    flashTimer = 0.05f;
                 }
+
+                if (audioSource != null && clipPulseFire != null)
+                {
+                    audioSource.PlayOneShot(clipPulseFire, 0.85f);
+                }
+
+                // Single Precision Pulse Beam Raycast (range 24m, 30 damage)
+                Vector3 origin = motor.Eye;
+                Vector3 dir = motor.ViewRotation * Vector3.forward;
+                if (Physics.Raycast(origin, dir, out var hit, 24.0f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+                {
+                    var target = hit.collider.GetComponentInParent<IDamageable>();
+                    if (target != null)
+                    {
+                        target.TakeDamage(30f);
+                        if (ui != null && target.IsDestroyed)
+                        {
+                            ui.ShowActionNotice("Цель нейтрализована");
+                        }
+                    }
+                    SpawnImpactFX(hit.point, hit.normal);
+                }
+            }
+            else
+            {
+                // ARC-12 Shockgun
+                cooldownTimer = 0.65f;
+                recoilAmount = 0.12f;
+                motor.AddPitchKick(-1.8f);
+
+                if (muzzleLight != null)
+                {
+                    muzzleLight.color = new Color(0.45f, 0.85f, 1.0f);
+                    muzzleLight.enabled = true;
+                    flashTimer = 0.06f;
+                }
+
+                if (audioSource != null && clipFire != null)
+                {
+                    audioSource.PlayOneShot(clipFire, 0.95f);
+                }
+
+                // 6-Pellet Cone Spread Raycast (effective range 9.0m)
+                const int pelletCount = 6;
+                const float maxRange = 9.0f;
+                const float damage = 55f;
+
+                Vector3 origin = motor.Eye;
+                var hitTargets = new System.Collections.Generic.HashSet<IDamageable>();
+
+                for (int i = 0; i < pelletCount; i++)
+                {
+                    Vector3 spread = i == 0 ? Vector3.zero : UnityEngine.Random.insideUnitSphere * 0.042f;
+                    Vector3 dir = (motor.ViewRotation * (Vector3.forward + spread)).normalized;
+
+                    if (Physics.Raycast(origin, dir, out var hit, maxRange, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+                    {
+                        var target = hit.collider.GetComponentInParent<IDamageable>();
+                        if (target != null)
+                        {
+                            hitTargets.Add(target);
+                        }
+                        SpawnImpactFX(hit.point, hit.normal);
+                    }
+                }
+
+                // Apply 55 damage to each hit target
+                foreach (var target in hitTargets)
+                {
+                    target.TakeDamage(damage);
+                    if (ui != null && target.IsDestroyed)
+                    {
+                        ui.ShowActionNotice("Цель нейтрализована");
+                    }
+                }
+            }
+
+            if (ui != null && currentAmmo <= 2 && reserveAmmo > 0)
+            {
+                ui.ShowActionNotice("Мало патронов · R");
+            }
+
+            return true;
+        }
+
+        public bool StartReload()
+        {
+            if (!hasWeapon || isReloading || currentAmmo >= magazineCapacity || reserveAmmo <= 0) return false;
+
+            isReloading = true;
+            reloadTimer = 1.35f;
+            if (audioSource != null && clipReload != null)
+            {
+                audioSource.PlayOneShot(clipReload, 0.9f);
+            }
+            if (ui != null)
+            {
+                ui.ShowActionNotice("Перезарядка");
+            }
+            return true;
+        }
+
+        public bool ThrowEmpGrenade()
+        {
+            if (!controls.CanExplore || cooldownTimer > 0) return false;
+
+            if (empGrenadeCount <= 0)
+            {
+                if (ui != null) ui.ShowActionNotice("Нет гранат");
+                return false;
+            }
+
+            empGrenadeCount--;
+            cooldownTimer = 0.5f;
+
+            if (audioSource != null && clipThrow != null)
+            {
+                audioSource.PlayOneShot(clipThrow, 0.85f);
+            }
+
+            Vector3 spawnPos = motor.Eye + motor.ViewRotation * new Vector3(0.15f, -0.1f, 0.4f);
+            Vector3 throwVel = motor.ViewRotation * Vector3.forward * 14.5f + Vector3.up * 2.2f;
+
+            var grenadeObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            grenadeObj.name = "EMP Grenade";
+            grenadeObj.transform.position = spawnPos;
+            grenadeObj.transform.localScale = new Vector3(0.12f, 0.14f, 0.12f);
+
+            var darkMat = MakeLitMat(new Color(0.15f, 0.18f, 0.22f), 0.7f, 0.6f);
+            var mr = grenadeObj.GetComponent<MeshRenderer>();
+            if (mr != null) mr.sharedMaterial = darkMat;
+
+            var proj = grenadeObj.AddComponent<EmpGrenadeProjectile>();
+            proj.Initialize(throwVel, ui);
+
+            if (ui != null)
+            {
+                ui.ShowActionNotice($"Граната EMP ({empGrenadeCount})");
             }
 
             return true;

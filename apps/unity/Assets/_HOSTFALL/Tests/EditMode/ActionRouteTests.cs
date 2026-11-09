@@ -91,5 +91,28 @@ namespace Hostfall.Tests
             Assert.That(restored[DeviceId.Ws07].Terminal.History,Is.EqualTo(legacy[DeviceId.Ws07].Terminal.History));
             Finish(restored,DeviceId.Edge01); Assert.That(restored.ServerAccess,Is.True);
         }
+        [Test] public void UpsPowerBudgetEnforcesCapacityAndOverload()
+        {
+            var ups = PowerGraph.CreateSector03UpsPreset();
+            Assert.That(ups.TotalActiveLoad, Is.EqualTo(5));
+            Assert.That(ups.IsOverloaded, Is.False);
+            Assert.That(ups.TryGetCircuit("vent", out var vent) && vent.IsEnergized, Is.True);
+            Assert.That(ups.TryGetCircuit("alarm", out var alarm) && alarm.IsEnergized, Is.True);
+            Assert.That(ups.TryGetCircuit("lift", out var lift) && !lift.IsEnergized, Is.True);
+
+            // Attempting to energize lift (5) while vent (3) and alarm (2) are active -> 10/8 OVERLOAD
+            ups.SetCircuit("lift", true);
+            Assert.That(ups.TotalActiveLoad, Is.EqualTo(10));
+            Assert.That(ups.IsOverloaded, Is.True);
+            Assert.That(lift.IsEnergized, Is.False);
+
+            // Disabling alarm (2) brings load to 3 + 5 = 8 <= 8 STABLE
+            ups.SetCircuit("alarm", false);
+            Assert.That(ups.TotalActiveLoad, Is.EqualTo(8));
+            Assert.That(ups.IsOverloaded, Is.False);
+            Assert.That(lift.IsEnergized, Is.True);
+            Assert.That(vent.IsEnergized, Is.True);
+            Assert.That(alarm.IsEnergized, Is.False);
+        }
     }
 }

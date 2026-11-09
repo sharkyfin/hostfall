@@ -354,9 +354,8 @@ namespace Hostfall.Editor
         {
             EngineeringDressing.Place("Shift notebook",world,new Vector3(2.15f,.842f,-3.63f),165);
             EngineeringDressing.Place("Maintenance cart",world,new Vector3(4.15f,0,-2.05f),90);
-            EngineeringDressing.Place("Cooling valve",world,new Vector3(4.55f,1.05f,10.6f),90);
-            Box("Cooling pipe riser", new Vector3(4.82f, 1.65f, 10.6f), new Vector3(.12f, 3.3f, .12f), dark);
-            Box("Cooling pipe tee", new Vector3(4.68f, 1.05f, 10.6f), new Vector3(.2f, .14f, .14f), metal);
+            EngineeringDressing.Place("Cooling valve",world,new Vector3(4.88f,1.05f,10.6f),0);
+            Box("Cooling pipe riser", new Vector3(4.92f, 1.65f, 10.6f), new Vector3(.08f, 3.3f, .08f), dark);
             TaskLamp(new Vector3(-3.27f,.84f,-4.07f));
             ModularKit.Place("Prop_Cable_1",world,new Vector3(4.35f,.012f,-4.9f),new Vector3(.7f,.07f,1.2f));
             ModularKit.Place("Prop_Crate3",world,new Vector3(4.15f,0,-5.75f),new Vector3(.65f,.65f,.65f),0,true);

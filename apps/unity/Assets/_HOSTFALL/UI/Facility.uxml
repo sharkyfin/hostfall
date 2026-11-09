@@ -1,6 +1,10 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
   <Style src="Facility.uss" />
   <ui:VisualElement name="hud" picking-mode="Ignore">
+    <ui:VisualElement name="location-badge" class="location-badge" picking-mode="Ignore">
+      <ui:Label name="location-sector" class="location-sector" text="СЕКТОР 00" />
+      <ui:Label name="location-room" class="location-room" text="ОПЕРАТОРСКАЯ (SOC)" />
+    </ui:VisualElement>
     <ui:VisualElement name="task-card" class="task-card" picking-mode="Ignore">
       <ui:Label name="task-heading" text="Задание" class="task-heading" />
       <ui:Label name="objective" class="objective" />
@@ -42,6 +46,7 @@
         <ui:Button name="resume" text="Продолжить" class="primary" />
         <ui:Button name="save-game" text="Сохранить" />
         <ui:VisualElement class="menu-row">
+          <ui:Button name="open-map" text="Карта" />
           <ui:Button name="open-journal" text="Задания" />
           <ui:Button name="open-archive" text="Знания" />
         </ui:VisualElement>
@@ -90,6 +95,20 @@
           <ui:ScrollView name="article-body" class="reading-pane" />
         </ui:VisualElement>
       </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+  <ui:VisualElement name="facility-map" class="overlay">
+    <ui:VisualElement class="map-window">
+      <ui:VisualElement class="window-header">
+        <ui:VisualElement class="map-header-info">
+          <ui:Label text="NORTHLINE // СХЕМА КОМПЛЕКСА" class="map-title" />
+          <ui:Label name="map-player-status" text="Сектор 00 · Операторская (SOC)" class="map-subtitle" />
+        </ui:VisualElement>
+        <ui:Button name="close-map" text="Закрыть · M / Esc" class="quiet-button" />
+      </ui:VisualElement>
+      <ui:ScrollView name="map-scroll" mode="Vertical" class="map-scroll">
+        <ui:VisualElement name="map-sectors-container" class="map-sectors-container" />
+      </ui:ScrollView>
     </ui:VisualElement>
   </ui:VisualElement>
 </ui:UXML>
