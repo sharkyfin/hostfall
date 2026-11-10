@@ -111,6 +111,7 @@ namespace Hostfall.Tests
                 Assert.That(Object.FindAnyObjectByType<ControlState>().Mode,Is.EqualTo(ControlMode.Introduction));
                 yield return Click(View().Q<Button>("intro-understood"));
                 composition.Field.Study("cpp.start"); FinishRoutine(composition.Simulation,DeviceId.Ws07);
+                Object.FindAnyObjectByType<PlayerHealth>().TakeDamage(35f);
                 Assert.That(composition.Persistence.Save("manual1"),Is.True);
                 Object.FindAnyObjectByType<FacilityUI>().ShowMainMenu();
                 yield return Click(View().Q<Button>("restart"));
@@ -128,11 +129,37 @@ namespace Hostfall.Tests
                 Assert.That(composition.Field.State("cpp.start"),Is.EqualTo(KnowledgeState.Studied));
                 Assert.That(composition.Simulation.Mission.CompletedObjectives,Is.EqualTo(1));
                 Assert.That(composition.Field.IntroductionSeen,Is.True);
+                Assert.That(Object.FindAnyObjectByType<PlayerHealth>().CurrentHealth,Is.EqualTo(65f),"Loading must restore damage, not heal the player");
                 Assert.That(Object.FindAnyObjectByType<ControlState>().Mode,Is.EqualTo(ControlMode.Exploring));
                 Assert.That(composition.Simulation[DeviceId.Ws07].Terminal.Lines.Any(l=>l.text.Contains("431")),Is.True);
                 ui=Object.FindAnyObjectByType<FacilityUI>(); ui.ShowMainMenu(); yield return Click(View().Q<Button>("restart")); yield return Click(View().Q<Button>("language-python")); ui.BeginSession();
                 Assert.That(composition.Field.ProgrammingLanguage,Is.EqualTo("cpp"),"New-game choice cannot rewrite a loaded campaign");
                 Object.FindAnyObjectByType<ControlState>().SetMode(ControlMode.Paused); LogAssert.NoUnexpectedReceived();
+            }
+            finally
+            {
+                foreach(var store in Object.FindObjectsByType<WorldSaveController>(FindObjectsSortMode.None)) store.enabled=false;
+                WorldSaveController.TestStorageDirectory=null; WorldSaveController.FreshStartRequested=false; WorldSaveController.ResumeRequested=false; WorldSaveController.PendingLoad=null;
+                if(Directory.Exists(directory)) Directory.Delete(directory,true);
+            }
+        }
+        [UnityTest] public IEnumerator LoadingDestroyedChassisShowsDeathScreen()
+        {
+            string directory=Path.Combine(Path.GetTempPath(),"hostfall-death-"+System.Guid.NewGuid().ToString("N"));
+            WorldSaveController.TestStorageDirectory=directory;
+            try
+            {
+                WorldSaveController.FreshStartRequested=true;
+                yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
+                var ui=Object.FindAnyObjectByType<FacilityUI>();
+                ui.BeginSession(); yield return Click(View().Q<Button>("intro-understood"));
+                Object.FindAnyObjectByType<PlayerHealth>().TakeDamage(100f);
+                var save=Object.FindAnyObjectByType<WorldSaveController>();
+                Assert.That(save.Save("manual1"),Is.True);
+                save.Load("manual1"); yield return null; yield return null;
+                Assert.That(Object.FindAnyObjectByType<PlayerHealth>().CurrentHealth,Is.Zero);
+                Assert.That(Object.FindAnyObjectByType<DeathController>().IsDead,Is.True);
+                Assert.That(View().Q("death-screen").resolvedStyle.display,Is.EqualTo(DisplayStyle.Flex));
             }
             finally
             {

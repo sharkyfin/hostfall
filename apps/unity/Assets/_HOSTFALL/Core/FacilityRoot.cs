@@ -136,6 +136,7 @@ namespace Hostfall.Core
             var health = player.GetComponent<PlayerHealth>() ?? player.gameObject.AddComponent<PlayerHealth>();
             health.Initialize(controls, ui, death);
             ui.BindPlayerHealth(health, death);
+            persistence.BindHealth(health, saved?.health);
             var actionController=gameObject.AddComponent<FacilityActionController>();
             actionController.Initialize(Simulation,player,controls,input,ui,allWatchers);
         }

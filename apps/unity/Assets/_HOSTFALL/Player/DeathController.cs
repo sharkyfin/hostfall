@@ -54,8 +54,7 @@ namespace Hostfall.Player
             // Clean raid reset from scratch
             if (persistence != null)
             {
-                string lang = persistence.Loaded ? "python" : "python";
-                persistence.NewGame(lang);
+                persistence.NewGame(persistence.Capture().field.programmingLanguage);
             }
         }
     }

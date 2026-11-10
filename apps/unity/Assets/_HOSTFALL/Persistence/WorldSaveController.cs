@@ -22,6 +22,7 @@ namespace Hostfall.Persistence
         private FacilitySimulation model;
         private FieldSession field;
         private PlayerMotor player;
+        private PlayerHealth health;
         private PlayerCameraRig cameraRig;
         private FacilityDoor door;
         private WatcherController watcher;
@@ -63,6 +64,14 @@ namespace Hostfall.Persistence
             if ((mode == ControlMode.Paused||mode==ControlMode.MainMenu) && started && enabledStore) Save();
         }
         private void Dirty() { if (dirtyAt < 0) dirtyAt = Time.unscaledTime; }
+        private void HealthChanged(float current, float maximum) => Dirty();
+        public void BindHealth(PlayerHealth value, PlayerHealthStateData saved)
+        {
+            if (health != null) health.HealthChanged -= HealthChanged;
+            health = value;
+            health.Restore(saved);
+            health.HealthChanged += HealthChanged;
+        }
         private void Update()
         {
             if (!enabledStore) return;
@@ -72,7 +81,7 @@ namespace Hostfall.Persistence
         public GameSaveData Capture() => new()
         {
             simulation = model.Capture(), field = field.CaptureProgress(), player = player.Capture(cameraRig.ThirdPerson),
-            door = door.Capture(), watcher = watcher.Capture(), enemies=enemies.Select(e=>e.Capture()).ToArray()
+            door = door.Capture(), watcher = watcher.Capture(), enemies=enemies.Select(e=>e.Capture()).ToArray(), health = health != null ? health.Capture() : null
         };
         public bool Save(string slotId="auto")
         {
@@ -83,7 +92,7 @@ namespace Hostfall.Persistence
                 Status = ""; StatusChanged?.Invoke(); return true;
             }
             catch (Exception error) when (error is IOException || error is UnauthorizedAccessException || error is ArgumentException)
-            { Status = "Не удалось сохранить. Предыдущая копия сохранена."; StatusChanged?.Invoke(); return false; }
+            { Debug.LogWarning("World save failed: " + error.Message); Status = "Не удалось сохранить. Предыдущая копия сохранена."; StatusChanged?.Invoke(); return false; }
         }
         public void Load(string slotId="auto")
         {
@@ -107,6 +116,7 @@ namespace Hostfall.Persistence
             if (model != null) model.StateChanged -= Dirty;
             if (field != null) field.Changed -= Dirty;
             if (controls != null) controls.Changed -= ModeChanged;
+            if (health != null) health.HealthChanged -= HealthChanged;
         }
     }
 }

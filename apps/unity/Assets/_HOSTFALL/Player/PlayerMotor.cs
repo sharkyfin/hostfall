@@ -102,9 +102,10 @@ namespace Hostfall.Player
                 Cursor.visible = false;
             }
             float dt = Time.deltaTime;
-            Vector2 look = input.Look.ReadValue<Vector2>();
-            transform.Rotate(0, look.x * mouseSensitivity * LookSensitivity, 0, Space.World);
-            targetPitch = Mathf.Clamp(targetPitch - look.y * mouseSensitivity * LookSensitivity, -82, 82);
+            Vector2 look = input.Look.ReadValue<Vector2>() * mouseSensitivity;
+            look += input.KeyboardLook.ReadValue<Vector2>() * (90f * dt);
+            transform.Rotate(0, look.x * LookSensitivity, 0, Space.World);
+            targetPitch = Mathf.Clamp(targetPitch - look.y * LookSensitivity, -82, 82);
             Pitch = Mathf.SmoothDamp(Pitch, targetPitch, ref pitchVelocity, 0.025f);
             Vector2 move = Vector2.ClampMagnitude(input.Move.ReadValue<Vector2>(), 1);
             float speed = input.Sprint.IsPressed() ? sprintSpeed : walkSpeed;
@@ -128,7 +129,7 @@ namespace Hostfall.Player
 
             // Out-of-bounds safety failsafe: recover if player ever drops into the void or escapes boundaries
             Vector3 p = transform.position;
-            if (p.y < -2.2f || p.y > 16.0f || p.x < -32.0f || p.x > 22.0f || p.z < -14.0f || p.z > 72.0f)
+            if (p.y <= -3.0f || p.y >= 18.0f || p.x <= -35.0f || p.x >= 95.0f || p.z <= -25.0f || p.z >= 210.0f)
             {
                 RecoverToSafety();
             }

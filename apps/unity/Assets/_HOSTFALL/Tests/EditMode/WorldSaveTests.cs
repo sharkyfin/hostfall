@@ -51,6 +51,27 @@ namespace Hostfall.Tests
             Assert.That(world.SourceIsolated, Is.True); Assert.That(world[DeviceId.Edge01].Powered, Is.False);
             Assert.That(saved.player.thirdPerson, Is.True); Assert.That(saved.door.offset, Is.EqualTo(1.25f));
         }
+        [Test] public void WatcherCanBeSavedAfterChasingPlayerIntoOperatorRoom()
+        {
+            var data = Snapshot();
+            data.watcher.position = new Vector3(-2.5f, 0, -1.5f);
+            store.Write(data);
+            Assert.That(store.TryLoad(out var loaded, out var error, Validate), Is.True, error);
+            Assert.That(loaded.watcher.position, Is.EqualTo(data.watcher.position));
+        }
+        [Test] public void PlayerCanBeSavedAtEvacuationOverlook()
+        {
+            var data = Snapshot();
+            data.player.position = new Vector3(10f, 0.1f, 199f);
+            store.Write(data);
+            Assert.That(store.TryLoad(out var loaded, out var error, Validate), Is.True, error);
+            Assert.That(loaded.player.position, Is.EqualTo(data.player.position));
+        }
+        [Test] public void OlderSaveWithoutHealthKeepsOptionalFieldMissing()
+        {
+            var legacy = JsonUtility.FromJson<GameSaveData>("{\"version\":2}");
+            Assert.That(legacy.health == null || !legacy.health.present, Is.True);
+        }
         [Test] public void DamagedPrimaryRecoversTheLastGoodBackupWithoutOverwritingIt()
         {
             var original = Snapshot(); store.Write(original); original.player.yaw = 80; store.Write(original);

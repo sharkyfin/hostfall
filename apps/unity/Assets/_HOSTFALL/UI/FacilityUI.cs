@@ -40,6 +40,7 @@ namespace Hostfall.UI
         private bool isMapOpen;
         private int terminalOpenedFrame = -1;
         private VisualElement healthBarFill, damageVignette, deathScreen;
+        private bool deathVisible;
         private Label healthText, deathCauseLabel, deathStatsLabel;
         private Button deathRestartButton, deathMainMenuButton;
         private PlayerHealth playerHealth;
@@ -62,8 +63,8 @@ namespace Hostfall.UI
             deathStatsLabel = root.Q<Label>("death-stats");
             deathRestartButton = root.Q<Button>("death-restart");
             deathMainMenuButton = root.Q<Button>("death-mainmenu");
-            if (deathRestartButton != null) deathRestartButton.clicked += () => { deathScreen.style.display = DisplayStyle.None; deathController?.RestartRaid(); };
-            if (deathMainMenuButton != null) deathMainMenuButton.clicked += () => { deathScreen.style.display = DisplayStyle.None; ShowMainMenu(); };
+            if (deathRestartButton != null) deathRestartButton.clicked += () => { deathVisible = false; deathScreen.style.display = DisplayStyle.None; deathController?.RestartRaid(); };
+            if (deathMainMenuButton != null) deathMainMenuButton.clicked += () => { deathVisible = false; deathScreen.style.display = DisplayStyle.None; ShowMainMenu(); };
 
             playerMotor=UnityEngine.Object.FindAnyObjectByType<PlayerMotor>();
             if (playerMotor != null)
@@ -213,6 +214,11 @@ namespace Hostfall.UI
         }
         public void BeginSession()
         {
+            if (playerHealth != null && playerHealth.IsDestroyed)
+            {
+                deathController?.TriggerDeath("Критическое разрушение корпуса");
+                return;
+            }
             ResetPage(); controls.SetMode(field.IntroductionSeen?ControlMode.Exploring:ControlMode.Introduction);
         }
         public void ShowMainMenu() { ResetPage(); controls.SetMode(ControlMode.MainMenu); }
@@ -231,6 +237,7 @@ namespace Hostfall.UI
         private void Update()
         {
             if(bindings==null) return;
+            if(deathVisible) return;
             RefreshActionNotice();
 
             if (vignetteTimer > 0f)
@@ -312,7 +319,7 @@ namespace Hostfall.UI
             var expectedMode=mode;
             GetComponent<UIDocument>().rootVisualElement.schedule.Execute(()=>
             {
-                if(controls.Mode!=expectedMode||page.Length>0) return;
+                if(deathVisible||controls.Mode!=expectedMode||page.Length>0) return;
                 if(mode==ControlMode.MainMenu)
                     GetComponent<UIDocument>().rootVisualElement.Q<Button>(HasSession?"front-continue":"restart").Focus();
                 else if(mode==ControlMode.Introduction) GetComponent<UIDocument>().rootVisualElement.Q<Button>("intro-understood").Focus();
@@ -805,6 +812,8 @@ namespace Hostfall.UI
         public void ShowDeathScreen(string cause, float time)
         {
             if (deathScreen == null) return;
+            deathVisible = true;
+            pause.style.display = DisplayStyle.None;
             deathScreen.style.display = DisplayStyle.Flex;
             if (deathCauseLabel != null) deathCauseLabel.text = "Причина: " + cause;
             if (deathStatsLabel != null)

@@ -16,6 +16,67 @@ namespace Hostfall.Tests
     public sealed class FacilitySmokeTests
     {
         [UnityTest]
+        public IEnumerator LegacyHealthDataDoesNotDestroyPlayer()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility");
+            yield return null;
+            var health = Object.FindAnyObjectByType<PlayerHealth>();
+            var legacy = JsonUtility.FromJson<Hostfall.Persistence.GameSaveData>("{\"version\":2}");
+            health.Restore(legacy.health);
+            Assert.That(health.CurrentHealth, Is.EqualTo(health.MaxHealth));
+        }
+
+        [UnityTest]
+        public IEnumerator PlayableSectorsDoNotTriggerOutOfBoundsRecovery()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility");
+            yield return null;
+            var player = Object.FindAnyObjectByType<PlayerMotor>();
+            var controls = Object.FindAnyObjectByType<ControlState>();
+            var controller = player.GetComponent<CharacterController>();
+            controls.SetMode(ControlMode.Exploring);
+            foreach (var position in new[] { new Vector3(0, 0.1f, -17f), new Vector3(0, 0.1f, 80f), new Vector3(30f, 0.1f, 80f), new Vector3(10f, 0.1f, 199f) })
+            {
+                controller.enabled = false;
+                player.transform.position = position;
+                controller.enabled = true;
+                yield return null;
+                Assert.That(Vector3.Distance(player.transform.position, position), Is.LessThan(1f),
+                    "The shelter and expanded sectors are inside the playable world.");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator EdgeCorridorHasRoomForThePlayer()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility");
+            yield return null;
+            var hits = Physics.CapsuleCastAll(new Vector3(-0.55f, 0.35f, 1.4f),
+                new Vector3(-0.55f, 1.5f, 1.4f), 0.3f, Vector3.forward, 5.0f,
+                CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore);
+            foreach (var hit in hits)
+            {
+                if (hit.collider.GetComponentInParent<WatcherController>() != null) continue;
+                Assert.Fail("EDGE corridor is obstructed by " + hit.collider.name + " at " + hit.point);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator DeathScreenOwnsFocusInsteadOfPauseMenu()
+        {
+            yield return SceneManager.LoadSceneAsync("NorthlineFacility");
+            yield return null;
+            var player = Object.FindAnyObjectByType<PlayerMotor>();
+            var document = Object.FindAnyObjectByType<UIDocument>();
+            player.GetComponent<DeathController>().TriggerDeath("test");
+            yield return new WaitForSecondsRealtime(0.1f);
+            var root = document.rootVisualElement;
+            Assert.That(root.Q("death-screen").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(root.Q("pause").resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
+            Assert.That(root.panel.focusController.focusedElement, Is.EqualTo(root.Q<Button>("death-restart")));
+        }
+
+        [UnityTest]
         public IEnumerator AuthoredSceneBootsWithThreeBoundTerminalsAndSolidFloor()
         {
             yield return SceneManager.LoadSceneAsync("NorthlineFacility");

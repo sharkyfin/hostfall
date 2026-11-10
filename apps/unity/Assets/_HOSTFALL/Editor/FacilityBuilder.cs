@@ -57,7 +57,7 @@ namespace Hostfall.Editor
             var terminals = new ComputerTerminal[3];
             terminals[0] = Workstation(DeviceId.Ws07, new Vector3(-2.65f, 0, -3.9f), 180);
             Workstation(null, new Vector3(2.65f, 0, -3.9f), 180);
-            terminals[1] = Workstation(DeviceId.Edge01, new Vector3(.55f, 0, 4), 90);
+            terminals[1] = Workstation(DeviceId.Edge01, new Vector3(.95f, 0, 4), 90);
             terminals[2] = Workstation(DeviceId.Core01, new Vector3(0, 0, 12.8f), 0);
             for (int side = -1; side <= 1; side += 2)
                 for (int row = 0; row < 3; row++)

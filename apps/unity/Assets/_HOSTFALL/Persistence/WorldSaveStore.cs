@@ -18,6 +18,7 @@ namespace Hostfall.Persistence
         public bool hasWeapon;
     }
     [Serializable] public sealed class DoorStateData { public bool opened; public float offset; }
+    [Serializable] public sealed class PlayerHealthStateData { public bool present; public float current, invulnerability; }
     [Serializable] public sealed class RobotStateData
     {
         public string id;
@@ -33,6 +34,8 @@ namespace Hostfall.Persistence
         public FacilityStateData simulation;
         public FieldProgressData field;
         public PlayerStateData player;
+        // Optional for saves written before chassis health was introduced.
+        public PlayerHealthStateData health;
         public DoorStateData door;
         public RobotStateData watcher;
         public RobotStateData[] enemies;
@@ -43,12 +46,13 @@ namespace Hostfall.Persistence
             FacilitySimulation.Restore(data.simulation);
             var p = data.player; var r = data.watcher;
             SaveValidation.Require(Finite(p.position) && Finite(p.planarVelocity) && Finite(p.yaw) && Finite(p.pitch) && Finite(p.targetPitch) && Finite(p.verticalSpeed), "Invalid player pose");
-            SaveValidation.Require(p.position.x > -35 && p.position.x < 95 && p.position.z > -25 && p.position.z < 190 && p.position.y > -3.0f && p.position.y < 18.0f, "Saved player outside facility");
+            SaveValidation.Require(p.position.x > -35 && p.position.x < 95 && p.position.z > -25 && p.position.z < 210 && p.position.y > -3.0f && p.position.y < 18.0f, "Saved player outside facility");
             SaveValidation.Require(Mathf.Abs(p.pitch) <= 82 && Mathf.Abs(p.targetPitch) <= 82 && p.planarVelocity.magnitude <= 12 && p.verticalSpeed >= -35 && p.verticalSpeed <= 12, "Invalid player motion");
             SaveValidation.Require(Finite(p.dashDirection)&&p.dashDirection.magnitude<=1.01f&&Finite(p.dashRemaining)&&p.dashRemaining>=0&&p.dashRemaining<=.181f,"Invalid saved dash");
+            SaveValidation.Require(data.health == null || !data.health.present || (Finite(data.health.current) && data.health.current >= 0 && data.health.current <= 100 && Finite(data.health.invulnerability) && data.health.invulnerability >= 0 && data.health.invulnerability <= 0.61f), "Invalid player health");
             SaveValidation.Require(Finite(data.door.offset) && data.door.offset >= 0 && data.door.offset <= 2.5f, "Invalid door state");
             SaveValidation.Require(Finite(r.position) && Finite(r.sensorEuler) && Finite(r.scan) && Finite(r.contactCooldown) && (r.direction == -1 || r.direction == 1), "Invalid robot pose");
-            SaveValidation.Require(Mathf.Abs(r.position.x) <= 1 && r.position.z >= 1.5f && r.position.z <= 6 && r.position.y >= 0 && r.position.y < 2 && r.scan >= 0 && r.contactCooldown >= 0 && r.contactCooldown <= 3.1f, "Invalid robot state");
+            SaveValidation.Require(r.position.x > -35 && r.position.x < 95 && r.position.z > -25 && r.position.z < 210 && r.position.y > -3 && r.position.y < 18 && r.scan >= 0 && r.contactCooldown >= 0 && r.contactCooldown <= 3.1f, "Invalid robot state");
             SaveValidation.Require(Finite(r.bodyYaw),"Invalid robot orientation");
             // Old saves contain only watcher. Extra enemies are optional and keyed by stable ID.
             SaveValidation.Require(data.enemies==null||data.enemies.Length<=32,"Unknown saved enemies");

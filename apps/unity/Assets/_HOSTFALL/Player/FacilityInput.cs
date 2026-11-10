@@ -11,6 +11,7 @@ namespace Hostfall.Player
         private ControlState state;
         public InputAction Move { get; private set; }
         public InputAction Look { get; private set; }
+        public InputAction KeyboardLook { get; private set; }
         public InputAction Sprint { get; private set; }
         public InputAction Jump { get; private set; }
         public InputAction Dash { get; private set; }
@@ -30,6 +31,8 @@ namespace Hostfall.Player
             Move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s").With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
             Move.AddBinding("<Gamepad>/leftStick");
             Look = gameplay.AddAction("Look", InputActionType.Value, "<Mouse>/delta");
+            KeyboardLook = gameplay.AddAction("KeyboardLook", InputActionType.Value);
+            KeyboardLook.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow").With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
             Sprint = gameplay.AddAction("Sprint", InputActionType.Button, "<Keyboard>/leftShift");
             Jump = gameplay.AddAction("Jump", InputActionType.Button, "<Keyboard>/space");
             Dash = gameplay.AddAction("Dash", InputActionType.Button, "<Keyboard>/q");

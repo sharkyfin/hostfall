@@ -1,5 +1,6 @@
 using System;
 using Hostfall.Core;
+using Hostfall.Persistence;
 using Hostfall.UI;
 using Hostfall.World;
 using UnityEngine;
@@ -82,6 +83,15 @@ namespace Hostfall.Player
         {
             currentHealth = maxHealth;
             invulnerabilityTimer = 0f;
+            HealthChanged?.Invoke(currentHealth, maxHealth);
+        }
+
+        public PlayerHealthStateData Capture() => new() { present = true, current = currentHealth, invulnerability = Mathf.Max(0f, invulnerabilityTimer) };
+        public void Restore(PlayerHealthStateData saved)
+        {
+            if (saved == null || !saved.present) return;
+            currentHealth = Mathf.Clamp(saved.current, 0f, maxHealth);
+            invulnerabilityTimer = Mathf.Clamp(saved.invulnerability, 0f, invulnerabilityDuration);
             HealthChanged?.Invoke(currentHealth, maxHealth);
         }
 

@@ -15,7 +15,7 @@ Unity не исполняет TS/React и не подключает браузе
 | JS editor/runner | Не перенесён | Worker sandbox сохранён |
 | HTTP/firewall/routes/patch panel | Не перенесены | Сохранено |
 | outcomes/convergence/care consequences | Только локальное сдерживание нового среза | Все финалы сохранены |
-| persistence | Desktop world-v2: FS/cwd/power/processes/служба/PID/миссия + состояние физического мира и знаний | localStorage v3 |
+| persistence | Desktop world-v2: FS/cwd/power/processes/служба/PID/миссия, знания, поза и прочность игрока; полное состояние расширенных секторов пока не сохраняется | localStorage v3 |
 
 `ps` на WS обнаруживает источник. Отключение автозапуска + штатная остановка службы изолируют источник и разрешают шлюз,
 `ps` на CORE подтверждает сдерживание. Цель обновляется из модели, UI не завершает миссию.
