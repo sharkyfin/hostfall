@@ -78,8 +78,8 @@ namespace Hostfall.World
         {
             if (player == null)
             {
-                var p = FindFirstObjectByType<PlayerMotor>();
-                var u = FindFirstObjectByType<FacilityUI>();
+                var p = FindAnyObjectByType<PlayerMotor>();
+                var u = FindAnyObjectByType<FacilityUI>();
                 if (p != null) Initialize(p, u);
             }
         }
