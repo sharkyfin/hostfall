@@ -49,6 +49,9 @@ namespace Hostfall.Editor
             // Adapt SOC east wall to create opening for Security Shortcut Door
             AdaptSocEastWall(scene);
 
+            // Adapt SOC south wall to create opening for Engineer Shelter & Service Tunnel
+            AdaptSocSouthWall(scene);
+
             var root = new GameObject(RootName);
             SceneManager.MoveGameObjectToScene(root, scene);
 
@@ -65,6 +68,11 @@ namespace Hostfall.Editor
 
             // ReflectionProbe for SOC and Server Room
             CreateReflectionProbe("Reflection Probe - SOC & Server Room", new Vector3(0, 2.0f, 6.0f), new Vector3(14.0f, 5.0f, 22.0f), root.transform);
+
+            // =========================================================================
+            // 0. ENGINEER SHELTER & SERVICE PASSAGE (Z = -19.0 .. -7.0) — Safe Home Base
+            // =========================================================================
+            BuildEngineerShelter(root.transform, matMetal, matDark, matConcrete, matFloor, matAmber, matGlass, matScreen, matSage, matGreen, matRed);
 
             // =========================================================================
             // 1. VAULT GATE (Z = 15.0) — Between Server Room and Dataset Vault
@@ -1658,6 +1666,228 @@ namespace Hostfall.Editor
             }
         }
 
+        private static void AdaptSocSouthWall(Scene scene)
+        {
+            var socRoom = scene.GetRootGameObjects()
+                .SelectMany(r => r.GetComponentsInChildren<Transform>(true))
+                .FirstOrDefault(t => t.name == "SOC / Operations Center");
+
+            if (socRoom != null)
+            {
+                var toDestroy = socRoom.Cast<Transform>()
+                    .Where(child => child.name.StartsWith("SOC South Wall") ||
+                                     (child.name == "End wall" && child.localPosition.z < -3.5f) ||
+                                     (child.name == "Painted room backdrop" && child.localPosition.z < -3.5f) ||
+                                     (child.name == "Service lower wall" && child.localPosition.z < -3.5f))
+                    .Select(t => t.gameObject)
+                    .ToList();
+
+                foreach (var go in toDestroy)
+                {
+                    UnityEngine.Object.DestroyImmediate(go);
+                }
+
+                var matConcrete = LoadMat("Concrete");
+                var matDark = LoadMat("Dark Metal");
+
+                // South wall opening between X = -1.35 and X = +1.35 (width 2.7m, height 3.0m)
+                CreateBox("SOC South Wall West", new Vector3(-3.175f, 1.65f, -4.0f), new Vector3(3.65f, 3.3f, 0.3f), matConcrete, socRoom, true);
+                CreateBox("SOC South Wall East", new Vector3(3.175f, 1.65f, -4.0f), new Vector3(3.65f, 3.3f, 0.3f), matConcrete, socRoom, true);
+                CreateBox("SOC South Wall Lintel", new Vector3(0, 3.175f, -4.0f), new Vector3(2.7f, 0.35f, 0.3f), matDark, socRoom, true);
+            }
+        }
+
+        private static void BuildEngineerShelter(Transform root, Material metal, Material dark, Material concrete, Material floor, Material amber, Material glass, Material screen, Material sage, Material green, Material red)
+        {
+            var shelter = new GameObject("Sector 00 - Engineer Shelter [HOME]").transform;
+            shelter.SetParent(root, false);
+
+            // 1. Service Passage (Z = -7.0 to Z = -9.0, X in [-1.6, 1.6])
+            CreateBox("Shelter Passage Floor", new Vector3(0, -0.1f, -8.0f), new Vector3(3.4f, 0.2f, 2.2f), floor, shelter, true);
+            CreateBox("Shelter Passage Ceiling", new Vector3(0, 3.25f, -8.0f), new Vector3(3.4f, 0.2f, 2.2f), dark, shelter, true);
+            CreateBox("Shelter Passage West Wall", new Vector3(-1.45f, 1.6f, -8.0f), new Vector3(0.4f, 3.2f, 2.2f), concrete, shelter, true);
+            CreateBox("Shelter Passage East Wall", new Vector3(1.45f, 1.6f, -8.0f), new Vector3(0.4f, 3.2f, 2.2f), concrete, shelter, true);
+
+            // Armored Blast Door [SEC-HOME] at Z = -8.0
+            var shelterDoorGroup = new GameObject("Shelter Security Door [SEC-HOME]").transform;
+            shelterDoorGroup.SetParent(shelter, false);
+            shelterDoorGroup.position = new Vector3(0, 0, -8.0f);
+
+            CreateBox("Shelter Door Left Jamb", new Vector3(-1.35f, 1.6f, 0), new Vector3(0.3f, 3.2f, 0.35f), dark, shelterDoorGroup, true);
+            CreateBox("Shelter Door Right Jamb", new Vector3(1.35f, 1.6f, 0), new Vector3(0.3f, 3.2f, 0.35f), dark, shelterDoorGroup, true);
+            CreateBox("Shelter Door Lintel", new Vector3(0, 3.1f, 0), new Vector3(3.0f, 0.3f, 0.35f), dark, shelterDoorGroup, true);
+
+            var doorLeaf = new GameObject("Shelter Sliding Leaf").transform;
+            doorLeaf.SetParent(shelterDoorGroup, false);
+            BuildArmoredDoorLeaf(doorLeaf, 2.4f, 2.9f, 0.2f, 1.6f, 1.2f, 0.45f, dark, glass, metal, amber, "Shelter");
+
+            var shelterDoor = shelterDoorGroup.gameObject.AddComponent<FacilityDoor>();
+            shelterDoor.Configure(doorLeaf, DoorAccessCondition.AlwaysUnlocked,
+                "Шлюз убежища инженера разблокирован",
+                "[E] Открыть шлюз убежища",
+                "[E] Закрыть шлюз убежища",
+                false, Vector3.up, 3.0f, 1.6f);
+
+            // 2. Shelter Room Envelope (Z: -9.0 to -19.0, X: -5.0 to +5.0, H: 3.2m)
+            CreateBox("Shelter Floor Slab", new Vector3(0, -0.1f, -14.0f), new Vector3(10.5f, 0.2f, 10.5f), floor, shelter, true);
+            CreateBox("Shelter Ceiling Slab", new Vector3(0, 3.25f, -14.0f), new Vector3(10.5f, 0.2f, 10.5f), dark, shelter, true);
+
+            // North Wall at Z = -9.0 with center opening
+            CreateBox("Shelter North Wall West", new Vector3(-3.25f, 1.6f, -9.0f), new Vector3(3.9f, 3.2f, 0.4f), concrete, shelter, true);
+            CreateBox("Shelter North Wall East", new Vector3(3.25f, 1.6f, -9.0f), new Vector3(3.9f, 3.2f, 0.4f), concrete, shelter, true);
+            CreateBox("Shelter North Lintel", new Vector3(0, 3.05f, -9.0f), new Vector3(2.6f, 0.35f, 0.4f), dark, shelter, true);
+
+            // South Wall at Z = -19.0
+            CreateBox("Shelter South Wall", new Vector3(0, 1.6f, -19.2f), new Vector3(10.5f, 3.2f, 0.4f), concrete, shelter, true);
+
+            // West Wall at X = -5.0
+            CreateBox("Shelter West Wall", new Vector3(-5.2f, 1.6f, -14.0f), new Vector3(0.4f, 3.2f, 10.5f), concrete, shelter, true);
+
+            // East Wall at X = +5.0
+            CreateBox("Shelter East Wall", new Vector3(5.2f, 1.6f, -14.0f), new Vector3(0.4f, 3.2f, 10.5f), concrete, shelter, true);
+
+            // 3. HOME-PC Workstation (X = -2.6, Z = -16.5)
+            BuildHomePcWorkstation(shelter, new Vector3(-2.6f, 0, -16.5f), metal, dark, amber, screen);
+
+            // 4. Hardware Workbench & Tool Racks (X = 2.6, Z = -16.5)
+            BuildWorkbenchArea(shelter, new Vector3(2.6f, 0, -16.5f), metal, dark, amber, green);
+
+            // 5. Rest / Survival Corner (Cot, Sleeping Bag, Crates) (X = -3.4, Z = -11.5)
+            BuildRestArea(shelter, new Vector3(-3.4f, 0, -11.5f), metal, dark, sage);
+
+            // 6. Tactical Investigation Board (X = 4.95, Z = -14.0)
+            BuildInvestigationBoard(shelter, new Vector3(4.95f, 1.7f, -14.0f), dark, amber, screen);
+
+            // 7. Spotlights and Ambiance
+            CreateSpotLight("HOME-PC Desk Spotlight", shelter, new Vector3(-2.6f, 3.1f, -16.5f), new Vector3(85, 0, 0), new Color(1.0f, 0.88f, 0.72f), 5.5f, 6.0f, 85f);
+            CreateSpotLight("Workbench Desk Spotlight", shelter, new Vector3(2.6f, 3.1f, -16.5f), new Vector3(85, 0, 0), new Color(0.95f, 0.92f, 0.85f), 5.5f, 6.0f, 85f);
+            CreateSpotLight("Board Light", shelter, new Vector3(3.6f, 2.7f, -14.0f), new Vector3(45, 90, 0), new Color(0.85f, 0.95f, 1.0f), 3.5f, 5.0f, 75f);
+            CreatePointLight("Shelter Warm Fill", shelter, new Vector3(0, 2.2f, -14.0f), new Color(0.98f, 0.82f, 0.62f), 2.2f, 9.0f);
+
+            CreateReflectionProbe("Reflection Probe - Engineer Shelter", new Vector3(0, 1.6f, -14.0f), new Vector3(10.5f, 3.5f, 10.5f), shelter);
+        }
+
+        private static void BuildHomePcWorkstation(Transform parent, Vector3 localPos, Material metal, Material dark, Material amber, Material screen)
+        {
+            var deskGroup = new GameObject("HOME-PC Workstation").transform;
+            deskGroup.SetParent(parent, false);
+            deskGroup.localPosition = localPos;
+            deskGroup.localRotation = Quaternion.Euler(0, 0, 0);
+
+            CreateBox("Desk Top", new Vector3(0, 0.75f, 0), new Vector3(2.2f, 0.08f, 0.9f), metal, deskGroup, true);
+            CreateBox("Desk Left Leg", new Vector3(-0.95f, 0.36f, 0), new Vector3(0.1f, 0.72f, 0.8f), dark, deskGroup, true);
+            CreateBox("Desk Right Leg", new Vector3(0.95f, 0.36f, 0), new Vector3(0.1f, 0.72f, 0.8f), dark, deskGroup, true);
+
+            CreateBox("PC Tower", new Vector3(0.75f, 0.36f, 0.1f), new Vector3(0.24f, 0.62f, 0.55f), dark, deskGroup, true);
+            CreateBox("PC Power LED", new Vector3(0.75f, 0.62f, -0.18f), new Vector3(0.02f, 0.02f, 0.02f), amber, deskGroup, false);
+
+            CreateBox("Monitor Stand", new Vector3(-0.15f, 0.98f, 0.22f), new Vector3(0.08f, 0.38f, 0.08f), metal, deskGroup, false);
+            CreateBox("Monitor Frame 1", new Vector3(-0.15f, 1.32f, 0.22f), new Vector3(0.96f, 0.58f, 0.06f), dark, deskGroup, true);
+            CreateBox("Monitor Screen 1", new Vector3(-0.15f, 1.32f, 0.185f), new Vector3(0.88f, 0.50f, 0.015f), screen, deskGroup, false);
+
+            var mon2 = new GameObject("Monitor 2").transform;
+            mon2.SetParent(deskGroup, false);
+            mon2.localPosition = new Vector3(0.68f, 1.32f, 0.12f);
+            mon2.localRotation = Quaternion.Euler(0, -25f, 0);
+            CreateBox("Monitor Frame 2", Vector3.zero, new Vector3(0.72f, 0.52f, 0.06f), dark, mon2, true);
+            CreateBox("Monitor Screen 2", new Vector3(0, 0, -0.035f), new Vector3(0.65f, 0.45f, 0.015f), screen, mon2, false);
+
+            CreateBox("Keyboard", new Vector3(-0.15f, 0.81f, -0.15f), new Vector3(0.48f, 0.025f, 0.18f), dark, deskGroup, false);
+            CreateBox("Mouse", new Vector3(0.35f, 0.81f, -0.15f), new Vector3(0.08f, 0.025f, 0.12f), dark, deskGroup, false);
+
+            CreateBox("USB Docking Station", new Vector3(-0.65f, 0.81f, 0.1f), new Vector3(0.22f, 0.04f, 0.18f), metal, deskGroup, true);
+            CreateBox("USB Stick HF-TOOLS", new Vector3(-0.65f, 0.84f, 0.08f), new Vector3(0.04f, 0.02f, 0.08f), amber, deskGroup, false);
+
+            ScreenText(deskGroup, "NORTHLINE // SHELTER HOME-PC [OFFLINE]\nCHASSIS: TYPE-IV TELEPRESENCE [CONNECTED]\nETH0: ISOLATED LOOP  |  STATUS: RESTRICTED\nUSB REPO: /media/engineer/HF-TOOLS [READY]",
+                new Vector3(-0.55f, 1.54f, 0.17f), 0.0028f, new Color(1.0f, 0.78f, 0.35f));
+
+            var dtc = deskGroup.gameObject.AddComponent<DoorTerminalConsole>();
+            dtc.Configure(null, "home-offline", "127.0.0.1",
+                new[] { "uname -a", "ls -la /media/engineer/HF-TOOLS", "sha256sum /media/engineer/HF-TOOLS/route-repair.pkg", "nl-telemetry-scan --interface eth0" },
+                new[] {
+                    "Linux home-offline 6.6.8-hardened #1 SMP PREEMPT_DYNAMIC x86_64 GNU/Linux\n 03:22:15 up 42 days, 1 user",
+                    "total 32\n-rw-r--r-- 1 engineer engineer 16384 Nov 09 03:17 route-repair.pkg\n-rw-r--r-- 1 engineer engineer   128 Nov 09 03:18 route-repair.pkg.sha256",
+                    "c93ae84f18d7b055d4829140aa91bcf847d0e1b34208a1d7f6b9432f81e3a9c1  route-repair.pkg\n[OK] Integrity verified: SIGNED BY IRINA VETROVA (Lead SysEng)",
+                    "Targeting Northline Complex Substation Loop...\n[!] SUPER AI Hypervisor active: Quarantine Quorum Enforced.\n[*] Service tunnel link: CLEAR\n[*] Type-IV Chassis link: ONLINE (Integrity 100%)\n[GOAL] Proceed through maintenance hatch to SOC / Sector 00."
+                },
+                "Пакет HF-TOOLS готов к использованию в комплексе",
+                "[E] Подключиться к терминалу HOME-PC",
+                null, null, null, DeviceId.Ws07, null, null, null, "t00_home");
+        }
+
+        private static void BuildWorkbenchArea(Transform parent, Vector3 localPos, Material metal, Material dark, Material amber, Material green)
+        {
+            var benchGroup = new GameObject("Hardware Workbench").transform;
+            benchGroup.SetParent(parent, false);
+            benchGroup.localPosition = localPos;
+
+            CreateBox("Workbench Top", new Vector3(0, 0.85f, 0), new Vector3(2.4f, 0.1f, 1.0f), dark, benchGroup, true);
+            CreateBox("Bench Leg Left", new Vector3(-1.05f, 0.4f, 0), new Vector3(0.12f, 0.8f, 0.9f), metal, benchGroup, true);
+            CreateBox("Bench Leg Right", new Vector3(1.05f, 0.4f, 0), new Vector3(0.12f, 0.8f, 0.9f), metal, benchGroup, true);
+            CreateBox("Lower Tool Shelf", new Vector3(0, 0.22f, 0), new Vector3(2.1f, 0.05f, 0.8f), metal, benchGroup, true);
+
+            CreateBox("Oscilloscope / Analyzer", new Vector3(-0.75f, 1.08f, 0.18f), new Vector3(0.42f, 0.35f, 0.32f), dark, benchGroup, true);
+            CreateBox("Soldering Station", new Vector3(-0.32f, 0.96f, 0.2f), new Vector3(0.24f, 0.12f, 0.22f), metal, benchGroup, false);
+            CreateBox("Wire Spool", new Vector3(-0.12f, 0.95f, 0.25f), new Vector3(0.14f, 0.1f, 0.14f), amber, benchGroup, false);
+
+            BuildAmmoBoxPickup(benchGroup, new Vector3(0.45f, 0.9f, 0), 12, metal, dark, amber);
+            BuildHealthKitPickup(benchGroup, new Vector3(0.95f, 0.9f, 0), 50f, metal, dark, green);
+        }
+
+        private static void BuildHealthKitPickup(Transform parent, Vector3 localPos, float healAmount, Material metal, Material dark, Material green)
+        {
+            var kitObj = new GameObject("Type-IV Repair Kit (+50%)");
+            kitObj.transform.SetParent(parent, false);
+            kitObj.transform.localPosition = localPos;
+
+            CreateBox("Kit Case Body", new Vector3(0, 0.12f, 0), new Vector3(0.38f, 0.22f, 0.24f), dark, kitObj.transform, true);
+            CreateBox("Kit Case Handle", new Vector3(0, 0.24f, 0), new Vector3(0.18f, 0.05f, 0.04f), metal, kitObj.transform, false);
+            CreateBox("Medical Cross Horiz", new Vector3(0, 0.12f, 0.122f), new Vector3(0.12f, 0.04f, 0.005f), green, kitObj.transform, false);
+            CreateBox("Medical Cross Vert", new Vector3(0, 0.12f, 0.122f), new Vector3(0.04f, 0.12f, 0.005f), green, kitObj.transform, false);
+
+            ScreenText(kitObj.transform, "TYPE-IV // REPAIR", new Vector3(-0.14f, 0.21f, 0.125f), 0.0015f, new Color(0.4f, 1.0f, 0.6f));
+
+            var col = kitObj.GetComponent<BoxCollider>();
+            if (col == null) col = kitObj.AddComponent<BoxCollider>();
+            col.center = new Vector3(0, 0.12f, 0);
+            col.size = new Vector3(0.45f, 0.3f, 0.3f);
+
+            var pickup = kitObj.AddComponent<HealthKitPickup>();
+            pickup.Configure(healAmount, "TYPE-IV REPAIR KIT");
+        }
+
+        private static void BuildRestArea(Transform parent, Vector3 localPos, Material metal, Material dark, Material sage)
+        {
+            var restGroup = new GameObject("Rest Quarters").transform;
+            restGroup.SetParent(parent, false);
+            restGroup.localPosition = localPos;
+
+            CreateBox("Cot Frame", new Vector3(0, 0.25f, 0), new Vector3(1.0f, 0.08f, 2.1f), metal, restGroup, true);
+            CreateBox("Cot Mattress", new Vector3(0, 0.36f, 0), new Vector3(0.9f, 0.14f, 2.0f), sage, restGroup, true);
+            CreateBox("Pillow", new Vector3(0, 0.48f, -0.75f), new Vector3(0.7f, 0.1f, 0.4f), dark, restGroup, false);
+
+            CreateBox("Ration Crate 1", new Vector3(0.9f, 0.3f, -0.5f), new Vector3(0.6f, 0.6f, 0.6f), dark, restGroup, true);
+            CreateBox("Ration Crate 2", new Vector3(0.9f, 0.3f, 0.3f), new Vector3(0.6f, 0.6f, 0.6f), dark, restGroup, true);
+            CreateBox("Water Canister", new Vector3(0.85f, 0.2f, 1.0f), new Vector3(0.35f, 0.4f, 0.25f), metal, restGroup, false);
+        }
+
+        private static void BuildInvestigationBoard(Transform parent, Vector3 localPos, Material dark, Material amber, Material screen)
+        {
+            var boardGroup = new GameObject("Investigation Pinboard").transform;
+            boardGroup.SetParent(parent, false);
+            boardGroup.localPosition = localPos;
+            boardGroup.localRotation = Quaternion.Euler(0, -90, 0);
+
+            CreateBox("Board Frame", Vector3.zero, new Vector3(3.2f, 1.8f, 0.06f), dark, boardGroup, true);
+            CreateBox("Corkboard Surface", new Vector3(0, 0, -0.02f), new Vector3(3.0f, 1.6f, 0.02f), amber, boardGroup, false);
+
+            ScreenText(boardGroup, "INCIDENT REPORT // 03:17 UTC\n\n- SUPER AI: QUORUM REVOKED\n- CORRIDOR GATES: LOCKED\n- OPERATOR CHASSIS TYPE-IV: ACTIVE\n- GOAL: BREACH CORE & DISABLE SUPER",
+                new Vector3(-1.35f, 0.65f, -0.035f), 0.0035f, new Color(0.12f, 0.14f, 0.16f));
+
+            ScreenText(boardGroup, "TOPOLOGY ROUTE:\nHOME -> SOC -> SRV -> DATA -> PWR -> CORE\n\nREMINDER: DO NOT TRUST REMOTE TRANSCRIPTS",
+                new Vector3(-1.35f, -0.1f, -0.035f), 0.0028f, new Color(0.4f, 0.08f, 0.08f));
+        }
+
         private static void BuildDatasetMonolith(Transform parent, Vector3 pos, Material dark, Material screen, Material amber)
         {
             var cluster = new GameObject("Dataset Monolith Cluster").transform;
@@ -2381,8 +2611,8 @@ namespace Hostfall.Editor
         {
             var sign = new GameObject("Signboard - " + code).transform;
             sign.SetParent(parent, false);
-            sign.position = pos;
-            sign.rotation = Quaternion.Euler(0, yaw, 0);
+            sign.localPosition = pos;
+            sign.localRotation = Quaternion.Euler(0, yaw, 0);
 
             var dark = LoadMat("Dark Metal");
             var amber = LoadMat("Indicator Amber");

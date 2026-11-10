@@ -358,6 +358,8 @@ namespace Hostfall.World
                     if (distToPlayer <= 0.7f)
                     {
                         // Immediate point-blank strike
+                        var health = player.GetComponent<PlayerHealth>();
+                        if (health != null) health.TakeDamage(35f, Id == "sentry-r18" ? "SENTRY R18 (Серверная)" : "WATCHER R17 (Служебный проход)");
                         player.ReturnToPost();
                         contactCooldown = 3;
                         simulation.RecordWatcherContact();
@@ -384,6 +386,8 @@ namespace Hostfall.World
                         if (seesPlayer && distToPlayer <= reach && contactCooldown <= 0)
                         {
                             // Attack hit!
+                            var health = player.GetComponent<PlayerHealth>();
+                            if (health != null) health.TakeDamage(45f, Id == "sentry-r18" ? "SENTRY R18 (Серверная)" : "WATCHER R17 (Служебный проход)");
                             player.ReturnToPost();
                             contactCooldown = 3;
                             simulation.RecordWatcherContact();

@@ -43,7 +43,7 @@ namespace Hostfall.Persistence
             FacilitySimulation.Restore(data.simulation);
             var p = data.player; var r = data.watcher;
             SaveValidation.Require(Finite(p.position) && Finite(p.planarVelocity) && Finite(p.yaw) && Finite(p.pitch) && Finite(p.targetPitch) && Finite(p.verticalSpeed), "Invalid player pose");
-            SaveValidation.Require(p.position.x > -35 && p.position.x < 95 && p.position.z > -12 && p.position.z < 190 && p.position.y > -3.0f && p.position.y < 18.0f, "Saved player outside facility");
+            SaveValidation.Require(p.position.x > -35 && p.position.x < 95 && p.position.z > -25 && p.position.z < 190 && p.position.y > -3.0f && p.position.y < 18.0f, "Saved player outside facility");
             SaveValidation.Require(Mathf.Abs(p.pitch) <= 82 && Mathf.Abs(p.targetPitch) <= 82 && p.planarVelocity.magnitude <= 12 && p.verticalSpeed >= -35 && p.verticalSpeed <= 12, "Invalid player motion");
             SaveValidation.Require(Finite(p.dashDirection)&&p.dashDirection.magnitude<=1.01f&&Finite(p.dashRemaining)&&p.dashRemaining>=0&&p.dashRemaining<=.181f,"Invalid saved dash");
             SaveValidation.Require(Finite(data.door.offset) && data.door.offset >= 0 && data.door.offset <= 2.5f, "Invalid door state");

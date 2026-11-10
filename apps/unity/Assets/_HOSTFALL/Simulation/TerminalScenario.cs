@@ -83,6 +83,7 @@ namespace Hostfall.Simulation
 
         static TerminalScenarioCatalog()
         {
+            Register(BuildT00Home());
             Register(BuildT01());
             Register(BuildT05MacOs());
             Register(BuildT06Windows());
@@ -127,6 +128,23 @@ namespace Hostfall.Simulation
         }
 
         public static void ResetExecutedEvents() => ExecutedWorldEvents.Clear();
+
+        // T00: HOME-PC (Hardened Linux 6.6 / Bash)
+        private static TerminalScenario BuildT00Home() => new(
+            "t00_home", (DeviceId)0, TerminalOsFamily.LinuxBash, "home-offline", "127.0.0.1", "~",
+            new[] {
+                new TerminalCommandStep("uname -a",
+                    "Linux home-offline 6.6.8-hardened #1 SMP PREEMPT_DYNAMIC x86_64 GNU/Linux\n 03:22:15 up 42 days, 1 user"),
+                new TerminalCommandStep("ls -la /media/engineer/HF-TOOLS",
+                    "total 32\n-rw-r--r-- 1 engineer engineer 16384 Nov 09 03:17 route-repair.pkg\n-rw-r--r-- 1 engineer engineer   128 Nov 09 03:18 route-repair.pkg.sha256"),
+                new TerminalCommandStep("sha256sum /media/engineer/HF-TOOLS/route-repair.pkg",
+                    "c93ae84f18d7b055d4829140aa91bcf847d0e1b34208a1d7f6b9432f81e3a9c1  route-repair.pkg\n[OK] Integrity verified: SIGNED BY IRINA VETROVA (Lead SysEng)"),
+                new TerminalCommandStep("nl-telemetry-scan --interface eth0",
+                    "Targeting Northline Complex Substation Loop...\n[!] SUPER AI Hypervisor active: Quarantine Quorum Enforced.\n[*] Service tunnel link: CLEAR\n[*] Type-IV Chassis link: ONLINE (Integrity 100%)\n[GOAL] Proceed through maintenance hatch to SOC / Sector 00.", 0.2f, "EVT_HOME_TELEMETRY_READY")
+            },
+            "Пакет HF-TOOLS готов к использованию в комплексе",
+            "EVT_HOME_TELEMETRY_READY"
+        );
 
         // T01: SOC-01 (CentOS 10 Stream Linux)
         private static TerminalScenario BuildT01() => new(

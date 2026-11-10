@@ -252,8 +252,8 @@ namespace Hostfall.Editor
                 task.transform.localPosition=new Vector3(0,3.02f,z); task.transform.localRotation=Quaternion.Euler(90,0,0);
                 task.type=LightType.Spot; task.color=soc?new Color(1,.92f,.82f):new Color(.85f,.92f,1.0f);
                 task.intensity=soc?7.5f:6.8f; task.range=10; task.spotAngle=110; task.innerSpotAngle=70; task.shadows=LightShadows.Soft;
-                Box("Overhead cable tray", new Vector3(-3.7f, 3.05f, 0), new Vector3(.4f, .1f, depth), dark, group);
             }
+            Box("Overhead cable tray", new Vector3(-3.7f, 3.05f, 0), new Vector3(.4f, .1f, depth), dark, group);
             for (int x = -4; x <= 4; x += 2)
                 Box("Ceiling rib", new Vector3(x, 3.2f, 0), new Vector3(.08f, .22f, depth), metal, group);
         }

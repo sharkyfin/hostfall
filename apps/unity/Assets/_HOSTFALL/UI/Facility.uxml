@@ -5,6 +5,15 @@
       <ui:Label name="location-sector" class="location-sector" text="СЕКТОР 00" />
       <ui:Label name="location-room" class="location-room" text="ОПЕРАТОРСКАЯ (SOC)" />
     </ui:VisualElement>
+    <ui:VisualElement name="health-badge" class="health-badge" picking-mode="Ignore">
+      <ui:Label text="КОРПУС TYPE-IV" class="health-title" />
+      <ui:VisualElement class="health-row">
+        <ui:VisualElement class="health-bar-bg">
+          <ui:VisualElement name="health-bar-fill" class="health-bar-fill" />
+        </ui:VisualElement>
+        <ui:Label name="health-text" class="health-text" text="100%" />
+      </ui:VisualElement>
+    </ui:VisualElement>
     <ui:VisualElement name="task-card" class="task-card" picking-mode="Ignore">
       <ui:Label name="task-heading" text="Задание" class="task-heading" />
       <ui:Label name="objective" class="objective" />
@@ -111,4 +120,18 @@
       </ui:ScrollView>
     </ui:VisualElement>
   </ui:VisualElement>
+  <ui:VisualElement name="death-screen" class="death-screen overlay">
+    <ui:VisualElement class="death-window">
+      <ui:Label text="// NEURAL LINK LOST //" class="death-heading" />
+      <ui:Label text="СВЯЗЬ С ТЕЛЕПРИСУТСТВЕННЫМ КОРПУСОМ ПРЕРВАНА" class="death-subheading" />
+      <ui:VisualElement class="death-divider" />
+      <ui:Label name="death-cause" class="death-detail" text="Причина: Критическое разрушение корпуса" />
+      <ui:Label name="death-stats" class="death-detail" text="Время рейда: 00:00" />
+      <ui:VisualElement class="death-actions">
+        <ui:Button name="death-restart" text="Начать новый рейд" class="primary-button" />
+        <ui:Button name="death-mainmenu" text="Главное меню" class="quiet-button" />
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+  <ui:VisualElement name="damage-vignette" class="damage-vignette" picking-mode="Ignore" />
 </ui:UXML>

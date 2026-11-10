@@ -18,6 +18,7 @@ if [[ "$mode" == open ]]; then exec "$unity_editor" -projectPath "$project_path"
 case "$mode" in
   author) args=(-executeMethod Hostfall.Editor.FacilityBuilder.Rebuild -quit) ;;
   expand) args=(-executeMethod Hostfall.Editor.SectorExpansionBuilder.Apply -quit) ;;
+  audit) args=(-executeMethod HostfallSceneAudit.AnalyzeActiveScene -quit) ;;
   editmode|playmode) args=(-runTests -testPlatform "$mode" -testResults "$repo_root/.artifacts/qa/$mode.xml") ;;
   desktop) args=(-executeMethod Hostfall.Editor.FacilityBuilder.BuildDesktop -quit) ;;
   web) args=(-buildTarget WebGL -executeMethod Hostfall.Editor.FacilityBuilder.BuildWeb -quit) ;;

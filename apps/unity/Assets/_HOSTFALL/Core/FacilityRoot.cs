@@ -125,10 +125,17 @@ namespace Hostfall.Core
                 yard.Initialize(ui);
             foreach (var ammo in FindObjectsByType<AmmoBoxPickup>(FindObjectsSortMode.None))
                 ammo.Initialize(ui);
+            foreach (var kit in FindObjectsByType<HealthKitPickup>(FindObjectsSortMode.None))
+                kit.Initialize(ui);
             foreach (var crawler in FindObjectsByType<TrackedSentryController>(FindObjectsSortMode.None))
                 crawler.Initialize(player, ui, controls);
             var weapon = player.GetComponent<PlayerWeapon>() ?? player.gameObject.AddComponent<PlayerWeapon>();
             weapon.Initialize(player, input, controls, ui);
+            var death = player.GetComponent<DeathController>() ?? player.gameObject.AddComponent<DeathController>();
+            death.Initialize(controls, ui, Simulation, persistence, player);
+            var health = player.GetComponent<PlayerHealth>() ?? player.gameObject.AddComponent<PlayerHealth>();
+            health.Initialize(controls, ui, death);
+            ui.BindPlayerHealth(health, death);
             var actionController=gameObject.AddComponent<FacilityActionController>();
             actionController.Initialize(Simulation,player,controls,input,ui,allWatchers);
         }

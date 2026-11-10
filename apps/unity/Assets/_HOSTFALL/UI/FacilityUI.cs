@@ -39,6 +39,12 @@ namespace Hostfall.UI
         private PlayerMotor playerMotor;
         private bool isMapOpen;
         private int terminalOpenedFrame = -1;
+        private VisualElement healthBarFill, damageVignette, deathScreen;
+        private Label healthText, deathCauseLabel, deathStatsLabel;
+        private Button deathRestartButton, deathMainMenuButton;
+        private PlayerHealth playerHealth;
+        private DeathController deathController;
+        private float vignetteTimer;
         public void Initialize(FacilitySimulation model, ControlState state, FacilityInput inputBindings, FieldSession progress, FieldSystemUI fieldView, WorldSaveController saveController)
         {
             simulation=model; controls=state; bindings=inputBindings; field=progress; fieldUI=fieldView; persistence=saveController;
@@ -48,7 +54,22 @@ namespace Hostfall.UI
             mapPlayerStatus=root.Q<Label>("map-player-status"); mapSectorsContainer=root.Q("map-sectors-container");
             openMap=root.Q<Button>("open-map"); if (openMap != null) openMap.clicked += OpenMap;
             closeMap=root.Q<Button>("close-map"); if (closeMap != null) closeMap.clicked += CloseMap;
+            healthBarFill = root.Q("health-bar-fill");
+            healthText = root.Q<Label>("health-text");
+            damageVignette = root.Q("damage-vignette");
+            deathScreen = root.Q("death-screen");
+            deathCauseLabel = root.Q<Label>("death-cause");
+            deathStatsLabel = root.Q<Label>("death-stats");
+            deathRestartButton = root.Q<Button>("death-restart");
+            deathMainMenuButton = root.Q<Button>("death-mainmenu");
+            if (deathRestartButton != null) deathRestartButton.clicked += () => { deathScreen.style.display = DisplayStyle.None; deathController?.RestartRaid(); };
+            if (deathMainMenuButton != null) deathMainMenuButton.clicked += () => { deathScreen.style.display = DisplayStyle.None; ShowMainMenu(); };
+
             playerMotor=UnityEngine.Object.FindAnyObjectByType<PlayerMotor>();
+            if (playerMotor != null)
+            {
+                BindPlayerHealth(playerMotor.GetComponent<PlayerHealth>(), playerMotor.GetComponent<DeathController>());
+            }
             preferences=new GamePreferences(playerMotor);
             objective=root.Q<Label>("objective"); prompt=root.Q<Label>("interaction"); host=root.Q<Label>("host"); inputPrompt=root.Q<Label>("input-prompt");
             taskHeading=root.Q<Label>("task-heading"); menuTitle=root.Q<Label>("menu-title"); resume=root.Q<Button>("resume");
@@ -211,6 +232,15 @@ namespace Hostfall.UI
         {
             if(bindings==null) return;
             RefreshActionNotice();
+
+            if (vignetteTimer > 0f)
+            {
+                vignetteTimer -= Time.unscaledDeltaTime;
+                if (vignetteTimer <= 0f && damageVignette != null)
+                {
+                    damageVignette.style.display = DisplayStyle.None;
+                }
+            }
 
             if(locationSector != null && locationRoom != null)
             {
@@ -548,6 +578,14 @@ namespace Hostfall.UI
         {
             new SectorMapEntry
             {
+                Code = "УБЕЖИЩЕ",
+                Name = "Мастерская инженера [HOME]",
+                Detail = "Автономное укрытие. Терминал HOME-PC, верстак ремонта Type-IV, архив инцидента.",
+                Connections = "Связь: Сектор 00 (Через сервисный шлюз SEC-HOME)",
+                BoundingBox = new Bounds(new Vector3(0, 1.5f, -14.0f), new Vector3(12f, 8f, 12f))
+            },
+            new SectorMapEntry
+            {
                 Code = "СЕКТОР 00",
                 Name = "Операторская (SOC)",
                 Detail = "Точка эвакуации и мониторинга комплекса. Терминал WS-07, главный энергощит.",
@@ -646,18 +684,21 @@ namespace Hostfall.UI
 
         public static SectorMapEntry GetCurrentSectorInfo(Vector3 pos)
         {
-            if (FacilitySectors[3].BoundingBox.Contains(pos))
-                return FacilitySectors[3];
+            if (pos.z < -8.5f)
+                return FacilitySectors[0];
+
+            if (FacilitySectors[4].BoundingBox.Contains(pos))
+                return FacilitySectors[4];
 
             for (int i = 0; i < FacilitySectors.Length; i++)
             {
-                if (i == 3) continue;
+                if (i == 4) continue;
                 if (FacilitySectors[i].BoundingBox.Contains(pos))
                     return FacilitySectors[i];
             }
 
             float closestDist = float.MaxValue;
-            int bestIdx = 0;
+            int bestIdx = 1;
             for (int i = 0; i < FacilitySectors.Length; i++)
             {
                 float d = Vector3.Distance(pos, FacilitySectors[i].BoundingBox.center);
@@ -748,6 +789,49 @@ namespace Hostfall.UI
 
                 mapSectorsContainer.Add(card);
             }
+        }
+
+        public void TriggerDamageFlash()
+        {
+            if (damageVignette == null) return;
+            damageVignette.style.display = DisplayStyle.Flex;
+            damageVignette.style.borderTopWidth = 24;
+            damageVignette.style.borderBottomWidth = 24;
+            damageVignette.style.borderLeftWidth = 24;
+            damageVignette.style.borderRightWidth = 24;
+            vignetteTimer = 0.35f;
+        }
+
+        public void ShowDeathScreen(string cause, float time)
+        {
+            if (deathScreen == null) return;
+            deathScreen.style.display = DisplayStyle.Flex;
+            if (deathCauseLabel != null) deathCauseLabel.text = "Причина: " + cause;
+            if (deathStatsLabel != null)
+            {
+                int min = Mathf.FloorToInt(time / 60f);
+                int sec = Mathf.FloorToInt(time % 60f);
+                deathStatsLabel.text = $"Время рейда: {min:D2}:{sec:D2}  |  Комплекс NORTHLINE";
+            }
+            deathRestartButton?.Focus();
+        }
+
+        public void BindPlayerHealth(PlayerHealth hp, DeathController dc)
+        {
+            if (playerHealth != null) playerHealth.HealthChanged -= UpdateHealthUI;
+            playerHealth = hp;
+            deathController = dc;
+            if (playerHealth != null)
+            {
+                playerHealth.HealthChanged += UpdateHealthUI;
+                UpdateHealthUI(playerHealth.CurrentHealth, playerHealth.MaxHealth);
+            }
+        }
+
+        public void UpdateHealthUI(float current, float max)
+        {
+            if (healthText != null) healthText.text = $"{Mathf.CeilToInt(current)}%";
+            if (healthBarFill != null) healthBarFill.style.width = Length.Percent(Mathf.Clamp01(current / max) * 100f);
         }
 
         private void OnDestroy()
