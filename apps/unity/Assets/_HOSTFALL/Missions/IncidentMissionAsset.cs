@@ -7,6 +7,9 @@ namespace Hostfall.Missions
     [CreateAssetMenu(menuName = "HOSTFALL/Incident Mission")]
     public sealed class IncidentMissionAsset : ScriptableObject
     {
+        [SerializeField] private bool interactiveComputers;
+        public bool InteractiveComputers => interactiveComputers;
+        public void UseInteractiveComputers() => interactiveComputers = true;
         [Serializable]
         private struct ObjectiveConfig
         {
@@ -28,6 +31,7 @@ namespace Hostfall.Missions
         };
         public MissionDefinition CreateDefinition()
         {
+            if(interactiveComputers) return MissionDefinition.ComputerWorld;
             var data = new ObjectiveDefinition[objectives.Length];
             for (int i = 0; i < data.Length; i++) data[i] = new ObjectiveDefinition(objectives[i].condition, objectives[i].device, objectives[i].description);
             return new MissionDefinition(completionMessage, data);

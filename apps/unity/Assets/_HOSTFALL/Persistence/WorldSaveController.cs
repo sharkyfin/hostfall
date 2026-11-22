@@ -41,7 +41,7 @@ namespace Hostfall.Persistence
         public void Initialize(FacilitySimulation simulation, FieldSession progress, PlayerMotor motor, PlayerCameraRig rig,
             FacilityDoor airlock, WatcherController robot, ControlState state, FacilityInput bindings, WorldSaveStore storage, GameSaveData loaded, string notice, Func<GameSaveData,bool> validate=null,WatcherController[] additional=null)
         {
-            model = simulation; field = progress; player = motor; cameraRig = rig; door = airlock; watcher = robot; controls = state; input = bindings; store = storage; library = new SaveLibrary(Path.GetDirectoryName(store.FilePath),validate);
+            model = simulation; field = progress; player = motor; cameraRig = rig; door = airlock; watcher = robot; controls = state; input = bindings; store = storage; library = new SaveLibrary(Path.GetDirectoryName(store.FilePath),validate,model.InteractiveComputers);
             enemies=additional??Array.Empty<WatcherController>();
             enabledStore = (!Application.isBatchMode||TestStorageDirectory!=null) && Application.platform != RuntimePlatform.WebGLPlayer;
             Loaded = loaded != null; Status = notice;
@@ -50,6 +50,26 @@ namespace Hostfall.Persistence
                 player.Restore(loaded.player); cameraRig.RestoreMode(loaded.player.thirdPerson);
                 door.Restore(loaded.door); watcher.Restore(loaded.watcher);
                 if(loaded.enemies!=null) foreach(var saved in loaded.enemies) { var match=enemies.FirstOrDefault(e=>e.Id==saved.id); if(match!=null) match.Restore(saved); }
+                if (loaded.doors != null)
+                {
+                    var allDoors = UnityEngine.Object.FindObjectsByType<FacilityDoor>(FindObjectsSortMode.None);
+                    foreach (var savedDoor in loaded.doors)
+                    {
+                        var match = allDoors.FirstOrDefault(d => d.DoorId == savedDoor.id);
+                        if (match != null) match.RestoreEntry(savedDoor);
+                    }
+                }
+                if (loaded.devices != null)
+                {
+                    Hostfall.Devices.DataCartridgeState.HasCartridge = loaded.devices.cartridgeCollected;
+                    Hostfall.Devices.DataCartridgeState.IsInserted = loaded.devices.cartridgeInserted;
+                    Hostfall.Devices.CoolingValveState.IsOpen = loaded.devices.valveCooled;
+                    Hostfall.Devices.CargoSwitchyardState.IsCleared = loaded.devices.cargoSwitched;
+                    Hostfall.Devices.CargoSwitchyardState.TrackSwitchSet = loaded.devices.cargoSwitchTrackSet;
+                    Hostfall.Devices.CargoSwitchyardState.PowerInterlockArmed = loaded.devices.cargoSwitchInterlockArmed;
+                    if (loaded.devices.collectedItems != null)
+                        Hostfall.Devices.PhysicalMediaInventory.Restore(loaded.devices.collectedItems);
+                }
             }
             model.StateChanged += Dirty; field.Changed += Dirty; controls.Changed += ModeChanged;
             nextPositionSave = Time.unscaledTime + 15;
@@ -76,13 +96,43 @@ namespace Hostfall.Persistence
         {
             if (!enabledStore) return;
             if (started && controls.Mode!=ControlMode.MainMenu && controls.Mode!=ControlMode.Introduction && input.Save.WasPressedThisFrame()) Save("quick");
-            if (started && ((dirtyAt >= 0 && Time.unscaledTime - dirtyAt > .6f) || (controls.Mode==ControlMode.Exploring && Time.unscaledTime >= nextPositionSave))) Save();
+            if (started && ((dirtyAt >= 0 && Time.unscaledTime - dirtyAt > (model.InteractiveComputers?5f:.6f)) || (controls.Mode==ControlMode.Exploring && Time.unscaledTime >= nextPositionSave))) Save();
         }
-        public GameSaveData Capture() => new()
+        public GameSaveData Capture()
         {
-            simulation = model.Capture(), field = field.CaptureProgress(), player = player.Capture(cameraRig.ThirdPerson),
-            door = door.Capture(), watcher = watcher.Capture(), enemies=enemies.Select(e=>e.Capture()).ToArray(), health = health != null ? health.Capture() : null
-        };
+            player.GetComponent<PlayerWeapon>()?.SyncWorldDrops();
+            if(model.InteractiveComputers)FindAnyObjectByType<LogisticsMechanisms>()?.SynchronizeForSave();
+            foreach(var actor in FindObjectsByType<RobotCombatController>(FindObjectsSortMode.None))actor.SyncState();
+            var allDoors = UnityEngine.Object.FindObjectsByType<FacilityDoor>(FindObjectsSortMode.None);
+            var doorEntries = allDoors != null ? allDoors.Select(d => d.CaptureEntry()).ToArray() : Array.Empty<DoorStateEntryData>();
+            var mechanicState = new DeviceMechanicStateData
+            {
+                cartridgeCollected = Hostfall.Devices.DataCartridgeState.HasCartridge,
+                cartridgeInserted = Hostfall.Devices.DataCartridgeState.IsInserted,
+                insertedCartridgeId = "NL-CART-044",
+                valveCooled = Hostfall.Devices.CoolingValveState.IsOpen,
+                cargoSwitched = Hostfall.Devices.CargoSwitchyardState.IsCleared,
+                cargoSwitchTrackSet = Hostfall.Devices.CargoSwitchyardState.TrackSwitchSet,
+                cargoSwitchInterlockArmed = Hostfall.Devices.CargoSwitchyardState.PowerInterlockArmed,
+                upsPowerRouted = Hostfall.Devices.UpsPowerState.IsDoorEnergized,
+                collectedItems = Hostfall.Devices.PhysicalMediaInventory.GetAllCollected()
+            };
+
+            return new GameSaveData
+            {
+                version=model.InteractiveComputers?3:2,worldId=model.InteractiveComputers?"northline-2":"northline-04-v1",
+                simulation = model.Capture(),
+                weapon = player.GetComponent<PlayerWeapon>()?.Capture(),
+                field = field.CaptureProgress(),
+                player = player.Capture(cameraRig.ThirdPerson),
+                door = door.Capture(),
+                doors = doorEntries,
+                devices = mechanicState,
+                watcher = watcher.Capture(),
+                enemies = enemies.Select(e => e.Capture()).ToArray(),
+                health = health != null ? health.Capture() : null
+            };
+        }
         public bool Save(string slotId="auto")
         {
             if (!enabledStore) return false;
@@ -92,7 +142,14 @@ namespace Hostfall.Persistence
                 Status = ""; StatusChanged?.Invoke(); return true;
             }
             catch (Exception error) when (error is IOException || error is UnauthorizedAccessException || error is ArgumentException)
-            { Debug.LogWarning("World save failed: " + error.Message); Status = "Не удалось сохранить. Предыдущая копия сохранена."; StatusChanged?.Invoke(); return false; }
+            {
+                dirtyAt = Time.unscaledTime;
+                nextPositionSave = Time.unscaledTime + 15;
+                Debug.LogWarning("World save failed: " + error.Message);
+                Status = "Не удалось сохранить. Предыдущая копия сохранена.";
+                StatusChanged?.Invoke();
+                return false;
+            }
         }
         public void Load(string slotId="auto")
         {
@@ -110,7 +167,7 @@ namespace Hostfall.Persistence
         }
         private void OnApplicationFocus(bool focus) { if (!focus && started && enabledStore) Save(); }
         private void OnApplicationQuit() { quitting = true; if (started && enabledStore) Save(); }
-        private void OnDisable() { if (!quitting && started && enabledStore && model != null) Save(); }
+        private void OnDisable() { if (!quitting && started && enabledStore && model != null && player != null && cameraRig != null && door != null && watcher != null && enemies.All(e=>e!=null)) Save(); }
         private void OnDestroy()
         {
             if (model != null) model.StateChanged -= Dirty;

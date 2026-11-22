@@ -164,7 +164,7 @@ namespace Hostfall.World
                 beaconLight.intensity = 2.5f + 1.8f * Mathf.Sin(Time.time * 16f);
             }
 
-            // Patrol movement
+            // Patrol movement with collision sweep
             Vector3 dest = patrolTarget == 0 ? patrolA : patrolB;
             dest.y = transform.position.y;
             Vector3 step = dest - transform.position;
@@ -172,7 +172,7 @@ namespace Hostfall.World
             {
                 Quaternion walkRot = Quaternion.LookRotation(step.normalized);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, walkRot, 55f * Time.deltaTime);
-                transform.position += transform.forward * (moveSpeed * Time.deltaTime);
+                PerformMovement(transform.forward * (moveSpeed * Time.deltaTime));
             }
             else
             {
@@ -197,6 +197,38 @@ namespace Hostfall.World
                 {
                     wasJammingPlayer = false;
                 }
+            }
+        }
+
+        private void PerformMovement(Vector3 delta)
+        {
+            float d = delta.magnitude;
+            if (d < 0.0001f) return;
+            Vector3 dir = delta / d;
+            const float radius = 0.5f;
+            const float height = 1.6f;
+            Vector3 bot = transform.position + Vector3.up * radius;
+            Vector3 top = transform.position + Vector3.up * Mathf.Max(radius, height - radius);
+
+            if (Physics.CapsuleCast(bot, top, radius, dir, out RaycastHit hit, d + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+            {
+                float allowed = Mathf.Max(0f, hit.distance - 0.04f);
+                transform.position += dir * allowed;
+                Vector3 slide = Vector3.ProjectOnPlane(dir, hit.normal);
+                slide.y = 0;
+                float rem = d - allowed;
+                if (rem > 0.001f && slide.sqrMagnitude > 0.001f)
+                {
+                    slide.Normalize();
+                    if (!Physics.CapsuleCast(bot + dir * allowed, top + dir * allowed, radius, slide, out _, rem + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+                    {
+                        transform.position += slide * rem;
+                    }
+                }
+            }
+            else
+            {
+                transform.position += delta;
             }
         }
 

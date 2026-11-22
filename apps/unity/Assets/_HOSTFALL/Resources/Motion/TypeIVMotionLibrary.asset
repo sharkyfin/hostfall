@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36684774b8df47539a155dd3be02684c, type: 3}
+  m_Name: TypeIVMotionLibrary
+  m_EditorClassIdentifier: Hostfall.Runtime::Hostfall.Player.OperatorMotionLibrary
+  joints:
+  - Pelvis
+  - Head
+  - HipL
+  - KneeL
+  - FootL
+  - ToeL
+  - ShoulderL
+  - ElbowL
+  - HandL
+  - HipR
+  - KneeR
+  - FootR
+  - ToeR
+  - ShoulderR
+  - ElbowR
+  - HandR
+  clips:
+  - name: Idle_Loop
+    clip: {fileID: 7400000, guid: a4ed69d11e0184059b253a8e3ee85987, type: 2}
+  - name: Walk_Loop
+    clip: {fileID: 7400000, guid: 08ddc286f10a5492e982e11482037bc6, type: 2}
+  - name: Jog_Fwd_Loop
+    clip: {fileID: 7400000, guid: f054b3f59e2c7471fa988185a6b02f37, type: 2}
+  - name: Sprint_Loop
+    clip: {fileID: 7400000, guid: 9eafda934a46a4012a6e13aaa11abc79, type: 2}
+  - name: Jump_Start
+    clip: {fileID: 7400000, guid: 78c5f6618a95b435cbab587e52fa872d, type: 2}
+  - name: Jump_Loop
+    clip: {fileID: 7400000, guid: 3a5483a2695c342c59c0976c7ae973ec, type: 2}
+  - name: Jump_Land
+    clip: {fileID: 7400000, guid: 18e214093916347a08ee2a657c72d343, type: 2}
+  - name: Interact
+    clip: {fileID: 7400000, guid: 267261acd483345b9bd0ba303620d910, type: 2}
+  - name: PickUp_Table
+    clip: {fileID: 7400000, guid: 657b0ea0bb21d4ff9a6d2142839a85c6, type: 2}
+  - name: Pistol_Reload
+    clip: {fileID: 7400000, guid: 2525ef56d0b2a42b1bbbbbc6cda92438, type: 2}
+  - name: Pistol_Shoot
+    clip: {fileID: 7400000, guid: e874b0998b03041e1bd45fea3235cb98, type: 2}
+  - name: Hit_Chest
+    clip: {fileID: 7400000, guid: 6b22d4875b4ef4b428dc3ec21becdce0, type: 2}

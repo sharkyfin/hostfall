@@ -7,7 +7,6 @@ namespace Hostfall.Player
     public sealed class PulseSidearmPickup : MonoBehaviour, IInteractable
     {
         [SerializeField] private string pickupPrompt = "[E] ВЗЯТЬ ИМПУЛЬСНЫЙ ПИСТОЛЕТ CIRRUS";
-        [SerializeField] private string acquiredNotice = "Получен импульсный пистолет NORTHLINE CIRRUS · [1]/[2] Смена оружия";
         private bool collected;
 
         public string Prompt => collected ? "" : pickupPrompt;
@@ -15,28 +14,24 @@ namespace Hostfall.Player
         public void Configure(string prompt, string notice)
         {
             pickupPrompt = prompt;
-            acquiredNotice = notice;
         }
 
+        private string StableId=>DroppedWeapon.AuthoredId(transform);
+        private void Start()
+        {
+            var owner=FindAnyObjectByType<PlayerWeapon>();
+            if(owner!=null&&owner.AuthoredWasCollected(StableId)){collected=true;Hide();}
+        }
+        private void Hide()
+        {
+            gameObject.SetActive(false);
+        }
         public void Interact()
         {
-            if (collected) return;
-            collected = true;
-
-            var playerWeapon = FindAnyObjectByType<PlayerWeapon>();
-            if (playerWeapon != null)
-            {
-                playerWeapon.UnlockPulseSidearm();
-            }
-
-            var ui = FindAnyObjectByType<FacilityUI>();
-            if (ui != null && !string.IsNullOrEmpty(acquiredNotice))
-            {
-                ui.ShowActionNotice(acquiredNotice);
-            }
-
-            gameObject.SetActive(false);
+            if(collected)return;
+            var owner=FindAnyObjectByType<PlayerWeapon>();
+            if(owner==null||!owner.PickupWeapon((ActiveWeaponType)1,15,45,StableId))return;
+            collected=true;Hide();
         }
     }
 }
-

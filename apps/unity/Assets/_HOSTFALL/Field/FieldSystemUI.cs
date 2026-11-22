@@ -4,6 +4,7 @@ using System.Linq;
 using Hostfall.Core;
 using Hostfall.Player;
 using Hostfall.Simulation;
+using Hostfall.Simulation.Computers;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -32,22 +33,31 @@ namespace Hostfall.Field
             results = root.Q<ScrollView>("knowledge-results"); questList = root.Q<ScrollView>("quest-list");
             foreach (var pane in new[] { articleBody, questBody, results, questList })
             { pane.horizontalScrollerVisibility = ScrollerVisibility.Hidden; pane.contentContainer.style.width = Length.Percent(100); }
-            search = root.Q<TextField>("knowledge-search"); search.RegisterValueChangedCallback(_ => Filter());
+            search = root.Q<TextField>("knowledge-search");
             progressLabel=root.Q<Label>("knowledge-progress");
-            foreach (string area in new[] { "Системы", "Программирование", "Сети", "Кибербезопасность", "Системное программирование", "Инфраструктура" })
-            {
-                string value = area; var button = new Button(() => SelectDomain(value)) { text = area=="Программирование"?area+" · "+field.LanguageTitle:area };
-                button.AddToClassList("domain-tab"); domains.Add(area, button); root.Q("knowledge-domains").Add(button);
-            }
             root.Q<Button>("field-close").clicked += Close;
             journalTab = root.Q<Button>("field-quests"); knowledgeTab = root.Q<Button>("field-knowledge");
             journalTab.clicked += ShowJournal; knowledgeTab.clicked += ShowArchive;
+            if (field.Simulation.InteractiveComputers) knowledgeTab.style.display = DisplayStyle.None;
+            else
+            {
+                search.RegisterValueChangedCallback(_ => Filter());
+                foreach (string area in new[] { "Системы", "Программирование", "Сети", "Кибербезопасность", "Системное программирование", "Инфраструктура" })
+                {
+                    var button = new Button(() => SelectDomain(area))
+                        { text = area == "Программирование" ? area + " · " + field.LanguageTitle : area };
+                    button.AddToClassList("domain-tab");
+                    domains.Add(area, button);
+                    root.Q("knowledge-domains").Add(button);
+                }
+                SelectDomain(field.Catalog.Articles[selectedArticle].category);
+            }
             field.Changed += OnProgress; controls.Changed += OnMode;
-            SelectDomain(field.Catalog.Articles[selectedArticle].category); OnMode(controls.Mode);
+            OnMode(controls.Mode);
         }
         private void Update()
         {
-            if (field == null || controls.Mode == ControlMode.Terminal || controls.Mode==ControlMode.MainMenu || controls.Mode==ControlMode.Introduction) return;
+            if (field == null || controls.Mode == ControlMode.Terminal || controls.Mode==ControlMode.Computer || controls.Mode==ControlMode.MainMenu || controls.Mode==ControlMode.Introduction) return;
             var focused = overlay.focusController?.focusedElement as VisualElement;
             if (controls.Mode == ControlMode.Field && (focused is TextField || focused?.GetFirstAncestorOfType<TextField>() != null)) return;
             if (input.Journal.WasPressedThisFrame()) { if (controls.Mode == ControlMode.Field && journal.style.display == DisplayStyle.Flex) Close(); else OpenJournal(); }
@@ -55,8 +65,8 @@ namespace Hostfall.Field
         }
         private void Open() { if (controls.Mode != ControlMode.Field) returnMode = controls.Mode; controls.SetMode(ControlMode.Field); }
         public void OpenJournal() { Open(); ShowJournal(); }
-        public void OpenArchive() { Open(); ShowArchive(); }
-        public void OpenArticle(string id) { Open(); ShowArchive(); ShowArticle(id); }
+        public void OpenArchive() { if(field.Simulation.InteractiveComputers)return; Open(); ShowArchive(); }
+        public void OpenArticle(string id) { if(field.Simulation.InteractiveComputers)return; Open(); ShowArchive(); ShowArticle(id); }
         public void OpenDocument(string id)
         {
             field.ReadDocument(id); Open(); ShowJournal(); questBody.Clear(); var document = field.Catalog.Documents[id];
@@ -69,10 +79,15 @@ namespace Hostfall.Field
             archive.style.display = knowledge ? DisplayStyle.Flex : DisplayStyle.None; journal.style.display = knowledge ? DisplayStyle.None : DisplayStyle.Flex;
             journalTab.EnableInClassList("tab-selected", !knowledge); knowledgeTab.EnableInClassList("tab-selected", knowledge);
         }
-        private void ShowArchive() { Tabs(true); ShowArticle(selectedArticle); Filter(); }
+        private void ShowArchive() { if(field.Simulation.InteractiveComputers)return; Tabs(true); ShowArticle(selectedArticle); Filter(); }
         private void ShowJournal()
         {
             Tabs(false); questList.Clear();
+            if (field.Simulation.ComputerCampaign is { } campaign)
+            {
+                ShowCampaignJournal(campaign);
+                return;
+            }
             int stage = Mathf.Min(field.Simulation.Mission.CompletedObjectives, 2);
             foreach (var quest in field.Catalog.Data.quests.Where(q => q.stage <= stage).OrderByDescending(q => q.stage))
             {
@@ -80,6 +95,41 @@ namespace Hostfall.Field
                 button.AddToClassList("journal-entry"); questList.Add(button);
             }
             ShowQuest(field.Catalog.Data.quests.First(q => q.stage == stage).id);
+        }
+        private void ShowCampaignJournal(ComputerCampaign campaign)
+        {
+            int current = (int)campaign.CurrentStage;
+            var entries = ComputerCampaign.Journal;
+            var currentButton = AddEntry(entries[current], "campaign-task-current",
+                campaign.CurrentStage == CampaignStage.Epilogue ? "Завершено" : "Текущее задание");
+            int index = 0;
+            foreach (var (entry, done) in campaign.SideTasks())
+                AddEntry(entry, "campaign-side-" + index++, done ? "Завершено" : "Побочное задание");
+            for (int previous = current - 1; previous >= 0; previous--)
+                AddEntry(entries[previous], "campaign-task-" + previous, "Завершено");
+            ShowEntry(entries[current], currentButton);
+            questList.scrollOffset = Vector2.zero;
+
+            Button AddEntry(CampaignJournalEntry entry, string name, string status)
+            {
+                var button = new Button { name = name, text = entry.Title + "\n" + status };
+                button.clicked += () => ShowEntry(entry, button);
+                button.AddToClassList("journal-entry");
+                questList.Add(button);
+                return button;
+            }
+        }
+
+        private void ShowEntry(CampaignJournalEntry entry, Button selected)
+        {
+            foreach (var button in questList.Query<Button>().ToList())
+                button.EnableInClassList("quest-selected", button == selected);
+            questBody.Clear();
+            Heading(questBody, entry.Title);
+            Paragraph(questBody, entry.Objective, "article-summary");
+            Paragraph(questBody, entry.Context);
+            Section(questBody, "Что делать", entry.Instructions);
+            questBody.scrollOffset = Vector2.zero;
         }
         private void ShowQuest(string id)
         {
@@ -158,7 +208,7 @@ namespace Hostfall.Field
             { string target=next; var button=new Button(()=>ShowArticle(target)) { text=field.Catalog.Articles[next].title }; button.AddToClassList("link-chip"); links.Add(button); }
             articleBody.Add(links); articleBody.scrollOffset=Vector2.zero;
         }
-        private void OnProgress() { if(controls?.Mode==ControlMode.Field) Filter(); }
+        private void OnProgress() { if (!field.Simulation.InteractiveComputers && controls?.Mode == ControlMode.Field) Filter(); }
         private static void Heading(VisualElement parent, string text) => Paragraph(parent, text, "article-title");
         private static void Section(VisualElement parent, string title, string body)
         { Paragraph(parent, title, "section-heading"); Paragraph(parent, body); }

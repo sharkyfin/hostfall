@@ -37,6 +37,12 @@ namespace Hostfall.Simulation
         }
         public void AddCommand(string text) { history.Add(text); if (history.Count > 100) history.RemoveAt(0); }
         public void Clear() { lines.Clear(); Scroll = 0; Revision++; }
+        internal void RemoveInitialMutedLine(string text)
+        {
+            if (lines.Count == 0 || lines[0].style != "muted" || lines[0].text != text) return;
+            lines.RemoveAt(0);
+            Revision++;
+        }
         // Unity can materialize a missing nested JSON object as an empty instance.
         public static bool IsLegacyEmpty(TerminalMemoryData data) => data==null ||
             ((uint)data.host==0 && !data.initialized && string.IsNullOrEmpty(data.draft) &&

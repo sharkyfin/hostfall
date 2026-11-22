@@ -2,6 +2,7 @@ using Hostfall.Core;
 using Hostfall.Persistence;
 using Hostfall.Player;
 using Hostfall.Simulation;
+using Hostfall.Simulation.Computers;
 using UnityEngine;
 
 namespace Hostfall.World
@@ -16,7 +17,111 @@ namespace Hostfall.World
         [SerializeField] private Vector3 patrolA=new(-.4f,0,2.2f),patrolB=new(-.4f,0,5.6f);
         [SerializeField] private Vector2 xBounds=new(-.58f,.58f),zBounds=new(1.65f,5.8f);
 
+        private RobotNavigation navigation;
+        private RobotCombatController combat;
         private FacilitySimulation simulation;
+        private ServerNetworkController network;
+        private WatcherSquads squad;
+        private TerminalAmbush terminalAmbush;
+        private bool terminalLeap;
+        private Vector3 leapRest;
+        private Vector3 fallStart;
+        private float leapLift;
+        private bool squadMemory, rangedWindup;
+        private bool networkTarget;
+        private ContainmentSession containment;
+        private Vector3 calibrationA, calibrationB, captureA, captureB;
+        private bool Transferring => containment != null && containment.Order != SentryOrder.Patrol;
+        private bool CanLeavePatrolArea => simulation.InteractiveComputers && containment == null &&
+            !Id.StartsWith("aux-watch-logistics-", System.StringComparison.Ordinal);
+
+        public (Vector3 first, Vector3 last) PatrolRoute => containment?.Order switch
+        {
+            SentryOrder.Calibration => (calibrationA, calibrationB),
+            SentryOrder.Capture => (captureA, captureB),
+            _ => (patrolA, patrolB)
+        };
+
+        public void BindContainment(ContainmentSession session, Vector3 inspectionStart, Vector3 inspectionEnd,
+            Vector3 bayStart, Vector3 bayEnd)
+        {
+            containment = session;
+            calibrationA = inspectionStart;
+            calibrationB = inspectionEnd;
+            captureA = bayStart;
+            captureB = bayEnd;
+        }
+        public bool HasNetworkTarget=>networkTarget;
+        public bool NetworkDisconnected=>network!=null&&network.Disconnected;
+        public WatcherRole TacticalRole { get; private set; }
+        internal bool CanCoordinate => isActiveAndEnabled && !IsDestroyed && !Transferring &&
+            !NetworkDisconnected && State.Mode is not (WatcherMode.Maintenance or WatcherMode.Offline or WatcherMode.Jammed);
+        internal void BindSquad(WatcherSquads coordinator) => squad = coordinator;
+        public void BindNetwork(ServerNetworkController channel){network=channel;}
+        internal void BindTerminalAmbush(TerminalAmbush ambush) => terminalAmbush = ambush;
+
+        internal void BeginTerminalLeap()
+        {
+            terminalLeap = true;
+            if (animator != null)
+            {
+                leapRest = animator.transform.localPosition;
+                leapLift = Mathf.Clamp(player.Eye.y - TerminalLeapTarget.y - .10f, .36f, 1.0f);
+                animator.CrossFadeInFixedTime("Attack", .045f);
+                animationState = "Attack";
+            }
+        }
+
+        internal Vector3 TerminalLeapTarget => sensor != null ? sensor.position : transform.position + Vector3.up;
+
+        internal bool TerminalLeapHasContact(Vector3 eye) =>
+            navigation.Visible(TerminalLeapTarget, eye);
+
+        internal void PresentTerminalLeap(Vector3 direction, float travel, float dt)
+        {
+            if (direction.sqrMagnitude > .012f)
+            {
+                navigation.Face(direction, dt, 800);
+                if (travel > 0 && direction.magnitude > .65f)
+                    navigation.DriveStraight(direction.normalized, Mathf.Min(dt * 4.0f, direction.magnitude - .65f), xBounds, zBounds);
+                if (sensor != null && (player.Eye - sensor.position).sqrMagnitude > .001f)
+                    sensor.rotation = Quaternion.LookRotation(player.Eye - sensor.position);
+            }
+            if (animator != null && animator.transform != transform)
+                animator.transform.localPosition = leapRest + Vector3.up * Mathf.Sin(travel * Mathf.PI * .5f) * leapLift;
+        }
+
+        internal void BeginTerminalFall()
+        {
+            if (animator != null) fallStart = animator.transform.localPosition;
+        }
+
+        internal void PresentTerminalFall(Vector3 away, float progress, float pushTime)
+        {
+            float fraction = Mathf.Clamp01(progress);
+            if (animator != null && animator.transform != transform)
+                animator.transform.localPosition = Vector3.Lerp(fallStart, leapRest, fraction * fraction);
+            if (pushTime > 0 && away.sqrMagnitude > .01f)
+                navigation.DriveStraight(away.normalized, 2.9f * pushTime, xBounds, zBounds);
+        }
+
+        internal void EndTerminalLeap(bool parried)
+        {
+            if (animator != null && animator.transform != transform) animator.transform.localPosition = leapRest;
+            terminalLeap = false;
+            windupTimer = 0;
+            contactCooldown = 3;
+            squad?.Release(this);
+            State.SetMode(WatcherMode.Alert);
+            if (parried) ReceiveKnockback(transform.position - player.transform.position, .12f);
+        }
+        public void ReceiveNetworkTarget(Vector3 point)
+        {
+            if(!isActiveAndEnabled||IsDestroyed||Transferring||containment?.Complete==true||NetworkDisconnected||network==null||!network.CommandOnline||State.Mode is WatcherMode.Alert or WatcherMode.AttackWindup or WatcherMode.Jammed or WatcherMode.Offline or WatcherMode.Maintenance)return;
+            networkTarget=true;lastKnownPosition=point;searchTimer=3;suspicion=.8f;State.SetMode(WatcherMode.Search);
+        }
+        public void ForgetNetworkTarget()
+        { if(!networkTarget)return;networkTarget=false;searchTimer=suspicion=windupTimer=0;if(!IsDestroyed)State.SetMode(WatcherMode.Patrol); }
         private PlayerMotor player;
         private ControlState controls;
         private AudioSource audioSource;
@@ -50,15 +155,16 @@ namespace Hostfall.World
         private float currentHealth = 100f;
         private bool isDestroyed;
 
-        public bool IsDestroyed => isDestroyed;
-        public float Health => currentHealth;
+        public bool IsDestroyed => combat?.Model?.IsDead ?? isDestroyed;
+        public float Health => combat?.Model?.Health ?? currentHealth;
         public bool IsStunned => stunTimer > 0f;
 
         public void TakeDamage(float amount)
         {
+            if(combat?.Model!=null&&!combat.CompletingDeath){combat.Hit(amount,RobotHitRegion.Hull,transform.position);return;}
             if (isDestroyed) return;
             currentHealth -= amount;
-            staggerTimer = 0.45f;
+            staggerTimer = 0.08f;
             PlayCue(clipJammed, 0.85f);
             SpawnHitSparks();
             if (currentHealth <= 0f)
@@ -80,6 +186,29 @@ namespace Hostfall.World
             }
         }
 
+        public void CaptureCombatTimers(RobotCombatData d)
+        { d.networkMemory=networkTarget;d.squadMemory=squadMemory;d.mode=(int)State.Mode;d.memoryX=lastKnownPosition.x;d.memoryZ=lastKnownPosition.z;d.memoryTime=Mathf.Clamp(searchTimer,0,20);d.stun=Mathf.Clamp(stunTimer,0,20);d.attackCooldown=contactCooldown;d.windup=Mathf.Clamp(windupTimer,0,3);d.rangedWindup=rangedWindup&&State.Mode==WatcherMode.AttackWindup; }
+        public void RestoreCombatTimers(RobotCombatData d)
+        { networkTarget=d.networkMemory;squadMemory=d.squadMemory;lastKnownPosition=new Vector3(d.memoryX,transform.position.y,d.memoryZ);searchTimer=d.memoryTime;stunTimer=d.stun;contactCooldown=d.attackCooldown;windupTimer=d.windup;rangedWindup=d.rangedWindup;State.SetMode((WatcherMode)d.mode); }
+        public void ReactToHit(Vector3 point)
+        {
+            if (player == null || squad == null || Sees(player.Eye))
+            {
+                HearShot(player != null ? player.transform.position : transform.position);
+                return;
+            }
+            if (isDestroyed || NetworkDisconnected || State.Mode is WatcherMode.Alert or WatcherMode.Search or WatcherMode.AttackWindup)
+                return;
+            var bearing = Vector3.ProjectOnPlane(point - transform.position, Vector3.up).normalized;
+            HearShot(transform.position + bearing * 2);
+        }
+        public void HearShot(Vector3 point)
+        {
+            if(isDestroyed||NetworkDisconnected)return;
+            networkTarget=false;squadMemory=false;lastKnownPosition=point;
+            suspicion=1;searchTimer=5;State.SetMode(WatcherMode.Alert);
+        }
+
         public void ApplyEmpStun(float duration = 7.0f)
         {
             if (isDestroyed) return;
@@ -93,6 +222,17 @@ namespace Hostfall.World
             }
             PlayCue(clipJammed, 0.95f);
             SpawnHitSparks();
+        }
+
+        internal void ReceiveKnockback(Vector3 direction, float distance)
+        {
+            if (IsDestroyed || Transferring || containment?.Complete == true) return;
+            stunTimer = Mathf.Max(stunTimer, .38f);
+            windupTimer = 0;
+            squad?.Release(this);
+            var planar = Vector3.ProjectOnPlane(direction, Vector3.up).normalized;
+            if (planar.sqrMagnitude > .01f)
+                navigation?.DriveStraight(planar, distance, xBounds, zBounds);
         }
 
         private void SpawnHitSparks()
@@ -119,9 +259,10 @@ namespace Hostfall.World
 
         public void Initialize(FacilitySimulation model,PlayerMotor target,ControlState state)
         {
-            simulation=model; player=target; controls=state;
+            simulation=model; player=target; controls=state; navigation=new RobotNavigation(transform,GetComponent<CapsuleCollider>().radius);
             EnsureAudio();
         }
+        internal void BindCombat(RobotCombatController controller) => combat = controller;
 
         private void EnsureAudio()
         {
@@ -159,7 +300,7 @@ namespace Hostfall.World
 
         private void PlayCue(AudioClip clip, float volume = 0.6f)
         {
-            if (audioSource != null && clip != null && controls != null && controls.CanExplore)
+            if (audioSource != null && clip != null && controls != null && controls.WorldRuns)
                 audioSource.PlayOneShot(clip, volume);
         }
 
@@ -174,6 +315,7 @@ namespace Hostfall.World
             isDestroyed = state.destroyed;
             if (isDestroyed)
             {
+                squad?.Release(this);
                 currentHealth = 0;
                 State.SetMode(WatcherMode.Offline);
                 if (indicator != null) indicator.enabled = false;
@@ -205,24 +347,75 @@ namespace Hostfall.World
             }
         }
 
+        private Vector3 SquadDestination(Vector3 position, Vector3 target)
+        {
+            var toward = Vector3.ProjectOnPlane(target - position, Vector3.up);
+            float range = toward.magnitude;
+            switch (TacticalRole)
+            {
+                case WatcherRole.Flank when range > 1.65f:
+                    var flank = Vector3.Cross(Vector3.up, toward.normalized) * 2.7f;
+                    var side = target + flank;
+                    if (side.x < xBounds.x || side.x > xBounds.y || side.z < zBounds.x || side.z > zBounds.y)
+                        side = target - flank;
+                    return side;
+                case WatcherRole.Overwatch:
+                    return range < 2.4f ? position - toward.normalized * 1.4f : position;
+                case WatcherRole.Ambush when range > 3.6f:
+                    var route = PatrolRoute;
+                    return (route.first - target).sqrMagnitude < (route.last - target).sqrMagnitude ? route.first : route.last;
+                default:
+                    return target;
+            }
+        }
+
+        private Vector3 Pursue(Vector3 position, Vector3 target)
+        {
+            target.y = position.y;
+            if (CanLeavePatrolArea)
+                return position + Vector3.ClampMagnitude(target - position, 12f);
+
+            target.x = Mathf.Clamp(target.x, xBounds.x, xBounds.y);
+            target.z = Mathf.Clamp(target.z, zBounds.x, zBounds.y);
+            return target;
+        }
+
+        private (Vector2 x, Vector2 z) MovementBounds(Vector3 position, Vector3 destination)
+        {
+            bool Contains(Vector3 point) => point.x >= xBounds.x && point.x <= xBounds.y &&
+                point.z >= zBounds.x && point.z <= zBounds.y;
+            if (!CanLeavePatrolArea || Contains(position) && Contains(destination))
+                return (xBounds, zBounds);
+
+            // A short search spanning the actual doorway is enough to leave or return to the patrol.
+            const float margin = 2.4f;
+            return (new Vector2(Mathf.Min(position.x, destination.x) - margin, Mathf.Max(position.x, destination.x) + margin),
+                new Vector2(Mathf.Min(position.z, destination.z) - margin, Mathf.Max(position.z, destination.z) + margin));
+        }
+
         public bool Sees(Vector3 target)
         {
-            if (isDestroyed) return false;
+            if (isDestroyed||NetworkDisconnected||Transferring||containment?.Complete==true) return false;
             if(simulation!=null&&simulation.Actions.Stun(Id)>0) return false;
             Vector3 delta=target-sensor.position;
-            float maxRange = Id == "sentry-r18" ? 5.5f : 5.0f;
+            bool impaired = combat?.Model?.Data.sensor <= 0;
+            float maxRange = impaired ? 2.2f : 7f;
             float maxAngle = Id == "sentry-r18" ? 55f : 50f;
-            return delta.magnitude<maxRange && Vector3.Angle(Vector3.ProjectOnPlane(sensor.forward,Vector3.up),Vector3.ProjectOnPlane(delta,Vector3.up))<maxAngle &&
-                !Physics.Linecast(sensor.position,target,CollisionLayers.WorldMask,QueryTriggerInteraction.Ignore);
+            bool closeRange = simulation?.InteractiveComputers == true && !impaired && delta.sqrMagnitude < 2.25f;
+            return delta.sqrMagnitude < maxRange * maxRange &&
+                (closeRange || Vector3.Angle(Vector3.ProjectOnPlane(sensor.forward,Vector3.up),Vector3.ProjectOnPlane(delta,Vector3.up)) < maxAngle) &&
+                (navigation??=new RobotNavigation(transform)).Visible(sensor.position,target);
         }
 
         private void Update()=>Tick(Time.deltaTime);
 
         public void Tick(float dt)
         {
-            if(simulation==null) return;
+            if(simulation==null || terminalLeap) return;
+            if(controls!=null&&!controls.WorldRuns)dt=0;
             if (isDestroyed)
             {
+                if(animator!=null)animator.speed=controls==null||controls.WorldRuns?1:0;
                 State.SetMode(WatcherMode.Offline);
                 if (indicator != null) indicator.enabled = false;
                 var capsule = GetComponent<CapsuleCollider>();
@@ -235,15 +428,22 @@ namespace Hostfall.World
                 return;
             }
             EnsureAudio();
+            if(network!=null&&!network.CommandOnline)ForgetNetworkTarget();
 
             bool relay=Id=="watcher-r17";
-            bool disabled = relay ? (!simulation.AutomatedRoute && simulation.SourceIsolated) : !simulation[DeviceId.Core01].HasProcess(CoreProcess);
+            bool disabled = Id.StartsWith("aux-watch-") ? false : relay ? (!simulation.AutomatedRoute && simulation.SourceIsolated) : !simulation[DeviceId.Core01].HasProcess(CoreProcess);
             bool powered = relay && simulation.AutomatedRoute ? true : simulation[relay ? DeviceId.Edge01 : DeviceId.Core01].Powered;
+
+            if (containment != null)
+            {
+                disabled = containment.Complete;
+                powered = true;
+            }
 
             if (stunTimer > 0f) stunTimer -= dt;
             if (staggerTimer > 0f) staggerTimer -= dt;
 
-            bool jammed = simulation.Actions.Stun(Id) > 0 || stunTimer > 0f || staggerTimer > 0f;
+            bool jammed = simulation.Actions.Stun(Id) > 0 || stunTimer > 0f || staggerTimer > 0f || NetworkDisconnected;
 
             if (disabled)
             {
@@ -261,6 +461,11 @@ namespace Hostfall.World
                 State.SetMode(WatcherMode.Jammed);
                 suspicion = 0; searchTimer = 0; windupTimer = 0;
             }
+            else if (Transferring)
+            {
+                State.SetMode(WatcherMode.Patrol);
+                suspicion = searchTimer = windupTimer = contactCooldown = 0;
+            }
             else if (State.Mode == WatcherMode.Jammed || State.Mode == WatcherMode.Offline || State.Mode == WatcherMode.Maintenance)
             {
                 State.SetMode(player != null && Sees(player.Eye) ? WatcherMode.Alert : WatcherMode.Patrol);
@@ -276,7 +481,7 @@ namespace Hostfall.World
 
             bool moving = false, contact = false;
 
-            if (controls.CanExplore && dt > 0 && !disabled && !powered == false && !jammed)
+            if (controls.WorldRuns && dt > 0 && !disabled && !powered == false && !jammed)
             {
                 contactCooldown = Mathf.Max(0, contactCooldown - dt);
                 bool seesPlayer = player != null && Sees(player.Eye);
@@ -285,8 +490,10 @@ namespace Hostfall.World
                 // --- 1. PERCEPTION & SENSORY STATE MACHINE ---
                 if (seesPlayer)
                 {
-                    lastKnownPosition = player.transform.position;
+                    networkTarget=false; squadMemory=false; lastKnownPosition = player.transform.position;
                     searchTimer = 0;
+                    if (simulation.InteractiveComputers && distToPlayer <= 1.5f)
+                        navigation.Face(lastKnownPosition - transform.position, dt, 420);
 
                     if (State.Mode == WatcherMode.Alert || State.Mode == WatcherMode.AttackWindup)
                     {
@@ -352,15 +559,39 @@ namespace Hostfall.World
                     }
                 }
 
+                if (squad != null)
+                {
+                    if (seesPlayer && State.Mode is WatcherMode.Alert or WatcherMode.AttackWindup)
+                        squad.ReportSight(this, lastKnownPosition);
+                    TacticalRole = squad.TryAssignment(this, out var role, out var observation) ? role : WatcherRole.Local;
+                    if (!seesPlayer)
+                    {
+                        if (TacticalRole != WatcherRole.Local && (State.Mode == WatcherMode.Patrol || squadMemory))
+                        {
+                            lastKnownPosition = observation;
+                            searchTimer = 1;
+                            squadMemory = true;
+                            State.SetMode(WatcherMode.Search);
+                        }
+                        else if (TacticalRole == WatcherRole.Local && squadMemory)
+                        {
+                            squadMemory = false;
+                            searchTimer = 0;
+                            State.SetMode(WatcherMode.Patrol);
+                        }
+                    }
+                }
+
+                float readinessRange = TacticalRole == WatcherRole.Overwatch ? 5.4f : 1.65f;
                 // --- 2. ATTACK TELEGRAPHING & EXECUTION ---
                 if (contactCooldown <= 0 && seesPlayer && (State.Mode == WatcherMode.Alert || State.Mode == WatcherMode.AttackWindup))
                 {
-                    if (distToPlayer <= 0.7f)
+                    if (squad == null && distToPlayer <= 0.7f)
                     {
                         // Immediate point-blank strike
                         var health = player.GetComponent<PlayerHealth>();
                         if (health != null) health.TakeDamage(35f, Id == "sentry-r18" ? "SENTRY R18 (Серверная)" : "WATCHER R17 (Служебный проход)");
-                        player.ReturnToPost();
+                        // Hits leave the player in the fight; dodging remains meaningful.
                         contactCooldown = 3;
                         simulation.RecordWatcherContact();
                         contact = true;
@@ -368,27 +599,39 @@ namespace Hostfall.World
                         PlayCue(clipAttack, 0.9f);
                         State.SetMode(WatcherMode.Alert);
                     }
-                    else if (distToPlayer <= 1.65f && State.Mode != WatcherMode.AttackWindup)
+                    else if (distToPlayer <= readinessRange && State.Mode != WatcherMode.AttackWindup &&
+                        (squad == null || squad.Acquire(this)))
                     {
                         // Begin attack telegraph / charge-up
                         State.SetMode(WatcherMode.AttackWindup);
-                        windupTimer = Id == "sentry-r18" ? 0.48f : 0.38f;
+                        rangedWindup = TacticalRole == WatcherRole.Overwatch;
+                        windupTimer = squad != null ? (rangedWindup ? .92f : .58f) :
+                            Id == "sentry-r18" ? 0.48f : 0.38f;
                         PlayCue(clipWindup, 0.7f);
                     }
                 }
 
                 if (State.Mode == WatcherMode.AttackWindup)
                 {
-                    windupTimer -= dt;
-                    if (windupTimer <= 0)
+                    if (squad != null && !squad.Acquire(this))
                     {
-                        float reach = Id == "sentry-r18" ? 1.6f : 1.35f;
+                        windupTimer = 0;
+                        State.SetMode(WatcherMode.Alert);
+                    }
+                    else
+                        windupTimer -= dt;
+                    if (windupTimer <= 0 && State.Mode == WatcherMode.AttackWindup)
+                    {
+                        bool covering = rangedWindup;
+                        float reach = covering ? 5.2f : Id == "sentry-r18" ? 1.6f : 1.35f;
                         if (seesPlayer && distToPlayer <= reach && contactCooldown <= 0)
                         {
+                            if (terminalAmbush?.OnContact(this, !covering) == true) return;
                             // Attack hit!
                             var health = player.GetComponent<PlayerHealth>();
-                            if (health != null) health.TakeDamage(45f, Id == "sentry-r18" ? "SENTRY R18 (Серверная)" : "WATCHER R17 (Служебный проход)");
-                            player.ReturnToPost();
+                            if (health != null) health.TakeDamage(covering ? 17f : squad != null ? 30f : 45f,
+                                squad != null ? "Удар охранного робота" : Id == "sentry-r18" ? "SENTRY R18 (Серверная)" : "WATCHER R17 (Служебный проход)");
+                            // Hits leave the player in the fight; dodging remains meaningful.
                             contactCooldown = 3;
                             simulation.RecordWatcherContact();
                             contact = true;
@@ -413,17 +656,17 @@ namespace Hostfall.World
 
                     if (State.Mode == WatcherMode.Alert)
                     {
-                        destination = new Vector3(Mathf.Clamp(player.transform.position.x, xBounds.x, xBounds.y), position.y, Mathf.Clamp(player.transform.position.z, zBounds.x, zBounds.y));
+                        destination = SquadDestination(position, Pursue(position, player.transform.position));
                     }
                     else if (State.Mode == WatcherMode.AttackWindup)
                     {
                         // Slight lunge forward in direction of target
                         Vector3 lungeDir = (player.transform.position - position).normalized;
-                        destination = position + lungeDir * (0.8f * dt);
+                        destination = rangedWindup ? position : position + lungeDir * (0.8f * dt);
                     }
                     else if (State.Mode == WatcherMode.Search)
                     {
-                        destination = new Vector3(Mathf.Clamp(lastKnownPosition.x, xBounds.x, xBounds.y), position.y, Mathf.Clamp(lastKnownPosition.z, zBounds.x, zBounds.y));
+                        destination = SquadDestination(position, Pursue(position, lastKnownPosition));
                     }
                     else if (State.Mode == WatcherMode.Suspicious)
                     {
@@ -432,38 +675,24 @@ namespace Hostfall.World
                     }
                     else
                     {
-                        // Patrol loop
-                        var end = direction > 0 ? patrolB : patrolA;
+                        var (first, last) = PatrolRoute;
+                        var end = direction > 0 ? last : first;
                         if (Vector3.Distance(position, end) < .1f) direction = -direction;
-                        destination = direction > 0 ? patrolB : patrolA;
-                        if (Mathf.Abs(position.x - destination.x) > .02f)
+                        destination = direction > 0 ? last : first;
+                        if (!simulation.InteractiveComputers && Mathf.Abs(position.x - destination.x) > .02f)
                             destination = new Vector3(destination.x, position.y, position.z);
                     }
 
                     float multiplier = simulation.Actions.Slow(Id) > 0 ? .4f : 1f;
-                    float baseSpeed = State.Mode == WatcherMode.Alert ? (Id == "sentry-r18" ? 1.35f : 1.75f) :
+                    float baseSpeed = State.Mode == WatcherMode.Alert ? (Id == "sentry-r18" ? 2.4f : 2.8f) :
                                       State.Mode == WatcherMode.AttackWindup ? 1.1f :
-                                      State.Mode == WatcherMode.Search ? (Id == "sentry-r18" ? 0.55f : 0.8f) :
+                                      State.Mode == WatcherMode.Search ? (Id == "sentry-r18" ? 1.4f : 1.6f) :
                                       State.Mode == WatcherMode.Suspicious ? 0.2f :
-                                      (Id == "sentry-r18" ? 0.5f : 0.65f);
+                                      (Transferring ? 1.7f : Id == "sentry-r18" ? 0.5f : 0.65f);
 
-                    var desired = Vector3.MoveTowards(position, destination, baseSpeed * multiplier * dt);
-                    Vector3 delta = desired - position;
-                    float distance = delta.magnitude;
-
-                    if (distance > .0001f)
-                    {
-                        var capsule = GetComponent<CapsuleCollider>();
-                        Vector3 center = position + capsule.center;
-                        float half = Mathf.Max(0, capsule.height / 2 - capsule.radius);
-                        foreach (var hit in Physics.CapsuleCastAll(center + Vector3.up * half, center - Vector3.up * half, capsule.radius, delta.normalized, distance + .025f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
-                            if (!hit.collider.transform.IsChildOf(transform)) distance = Mathf.Min(distance, Mathf.Max(0, hit.distance - .025f));
-                        transform.position = position + delta.normalized * distance;
-                        moving = distance > .001f;
-
-                        float turnRate = Id == "sentry-r18" ? 95f : 135f;
-                        if (moving) transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(delta), turnRate * dt);
-                    }
+                    multiplier *= combat?.Mobility ?? 1;
+                    var (searchX, searchZ) = MovementBounds(position, destination);
+                    moving=(navigation??=new RobotNavigation(transform)).Move(destination,baseSpeed*multiplier,dt,searchX,searchZ);
 
                     // Sensor orientation
                     if (State.Mode == WatcherMode.Alert || State.Mode == WatcherMode.AttackWindup || State.Mode == WatcherMode.Suspicious)
@@ -480,6 +709,9 @@ namespace Hostfall.World
                     }
                 }
             }
+
+            if (State.Mode != WatcherMode.AttackWindup)
+                squad?.Release(this);
 
             // --- 4. VISUAL INDICATOR & LIGHTS ---
             if (indicator != null)
@@ -502,13 +734,13 @@ namespace Hostfall.World
             }
 
             // --- 5. ANIMATIONS ---
-            string clip = State.Mode == WatcherMode.Maintenance || State.Mode == WatcherMode.Offline || State.Mode == WatcherMode.Jammed ? "TurnOff" :
+            string clip = State.Mode == WatcherMode.Maintenance || State.Mode == WatcherMode.Offline ? "TurnOff" :
                           contact || contactCooldown > 2.4f || State.Mode == WatcherMode.AttackWindup ? "Attack" :
                           moving ? (State.Mode == WatcherMode.Alert ? "Run" : "Walk") : "Idle";
 
             if (animator != null)
             {
-                animator.speed = controls.CanExplore ? 1 : 0;
+                animator.speed = controls.WorldRuns && !NetworkDisconnected ? 1 : 0;
                 if (animationState != clip) { animator.CrossFadeInFixedTime(clip, .12f); animationState = clip; }
             }
 

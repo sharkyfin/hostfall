@@ -1,30 +1,45 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
   <Style src="Facility.uss" />
+  <ui:VisualElement name="damage-vignette" class="damage-vignette" picking-mode="Ignore" />
   <ui:VisualElement name="hud" picking-mode="Ignore">
-    <ui:VisualElement name="location-badge" class="location-badge" picking-mode="Ignore">
-      <ui:Label name="location-sector" class="location-sector" text="СЕКТОР 00" />
-      <ui:Label name="location-room" class="location-room" text="ОПЕРАТОРСКАЯ (SOC)" />
-    </ui:VisualElement>
-    <ui:VisualElement name="health-badge" class="health-badge" picking-mode="Ignore">
-      <ui:Label text="КОРПУС TYPE-IV" class="health-title" />
-      <ui:VisualElement class="health-row">
-        <ui:VisualElement class="health-bar-bg">
-          <ui:VisualElement name="health-bar-fill" class="health-bar-fill" />
+    <ui:VisualElement name="hud-top-row" class="hud-top-row" picking-mode="Ignore">
+      <ui:VisualElement name="hud-left" class="hud-left" picking-mode="Ignore">
+        <ui:VisualElement name="radar-slot" class="radar-slot" picking-mode="Ignore">
+          <ui:Label text="С" class="radar-north" />
         </ui:VisualElement>
-        <ui:Label name="health-text" class="health-text" text="100%" />
+        <ui:VisualElement name="location-badge" class="location-badge" picking-mode="Ignore">
+          <ui:Label name="location-room" class="location-room" />
+        </ui:VisualElement>
+
+      </ui:VisualElement>
+      <ui:VisualElement name="task-card" class="task-card" picking-mode="Ignore">
+        <ui:Label name="task-heading" text="Задание" class="task-heading" />
+        <ui:Label name="objective" class="objective" />
+        <ui:Label name="interaction" class="task-action" />
       </ui:VisualElement>
     </ui:VisualElement>
-    <ui:VisualElement name="task-card" class="task-card" picking-mode="Ignore">
-      <ui:Label name="task-heading" text="Задание" class="task-heading" />
-      <ui:Label name="objective" class="objective" />
-      <ui:Label name="interaction" class="task-action" />
+        <ui:VisualElement name="health-badge" class="health-badge" picking-mode="Ignore">
+          <ui:VisualElement class="health-row">
+            <ui:VisualElement class="health-bar-bg">
+              <ui:VisualElement name="health-bar-fill" class="health-bar-fill" />
+            </ui:VisualElement>
+            <ui:Label name="health-text" class="health-text" text="100%" />
+          </ui:VisualElement>
+        </ui:VisualElement>
+    <ui:Label name="weapon-status" class="weapon-status" picking-mode="Ignore" />
+    <ui:VisualElement name="guardian-health" class="guardian-health" picking-mode="Ignore">
+      <ui:Label name="guardian-name" class="guardian-name" picking-mode="Ignore" />
+      <ui:VisualElement class="guardian-health-track" picking-mode="Ignore">
+        <ui:VisualElement name="guardian-health-fill" class="guardian-health-fill" picking-mode="Ignore" />
+      </ui:VisualElement>
     </ui:VisualElement>
+    <ui:VisualElement name="crosshair" class="crosshair" picking-mode="Ignore" />
   </ui:VisualElement>
   <ui:VisualElement name="terminal" class="overlay">
     <ui:VisualElement class="terminal-window">
       <ui:VisualElement class="window-header">
         <ui:Label name="host" class="host" />
-        <ui:Button name="close-terminal" text="Закрыть · Esc" class="quiet-button" />
+        <ui:Button name="close-terminal" text="✕ Закрыть терминал (Esc / P)" class="quiet-button" />
       </ui:VisualElement>
       <ui:Label name="routine-status" class="routine-status" />
       <ui:ScrollView name="output" mode="Vertical" class="output" />
@@ -35,6 +50,8 @@
     </ui:VisualElement>
   </ui:VisualElement>
   <ui:VisualElement name="main-menu" class="overlay front-screen">
+    <ui:VisualElement name="front-film" class="front-film" picking-mode="Ignore" />
+    <ui:VisualElement name="front-film-shade" class="front-film-shade" picking-mode="Ignore" />
     <ui:VisualElement class="front-layout">
       <ui:VisualElement class="front-brand">
         <ui:Label text="HOSTFALL" class="front-title" />
@@ -72,12 +89,17 @@
       <ui:Label name="menu-error" class="menu-error" />
     </ui:VisualElement>
   </ui:VisualElement>
+  <ui:VisualElement name="awakening" class="awakening">
+    <ui:VisualElement name="awakening-shade" class="awakening-shade" picking-mode="Ignore" />
+    <ui:Label name="awakening-subtitle" class="awakening-subtitle" />
+    <ui:Button name="skip-awakening" text="Пропустить · Пробел" class="awakening-skip quiet-button" />
+  </ui:VisualElement>
   <ui:VisualElement name="introduction" class="overlay introduction-screen">
     <ui:VisualElement class="introduction-card">
-      <ui:Label text="Вы на смене" class="article-title" />
-      <ui:Label text="Доберитесь до терминала и задержите взгляд на экране. Герой сам проведёт анализ: команды и ответы появятся перед вами. Выбирать и вводить команды не нужно." class="article-text" />
-      <ui:Label text="Избегайте роботов: Shift — бег, Пробел — прыжок, Q — рывок. Первый терминал откроет импульс на F: наведитесь на робота без преграды и временно заглушите его. Затем уходите — эффект закончится." class="article-text" />
-      <ui:Label text="Задания — J. Знания — K. Пауза — Esc. Новые темы открываются по мере продвижения; выбранный язык программирования останется с этой игрой." class="article-text" />
+      <ui:Label name="intro-title" text="Операторская" class="article-title" />
+      <ui:Label name="intro-body" text="Доберитесь до компьютера и нажмите E. Герой сам проведёт анализ: команды и ответы появятся перед вами. Выбирать и вводить команды не нужно." class="article-text" />
+      <ui:Label name="intro-controls" text="Избегайте роботов: Shift — бег, Пробел — прыжок, Q — рывок. Первый терминал откроет импульс на F: наведитесь на робота без преграды и временно заглушите его. Затем уходите — эффект закончится." class="article-text" />
+      <ui:Label name="intro-library" text="Задания — J. Знания — K. Пауза — Esc. Новые темы открываются по мере продвижения; выбранный язык программирования останется с этой игрой." class="article-text" />
       <ui:Button name="intro-understood" text="Понятно" class="primary" />
     </ui:VisualElement>
   </ui:VisualElement>
@@ -110,14 +132,21 @@
     <ui:VisualElement class="map-window">
       <ui:VisualElement class="window-header">
         <ui:VisualElement class="map-header-info">
-          <ui:Label text="NORTHLINE // СХЕМА КОМПЛЕКСА" class="map-title" />
-          <ui:Label name="map-player-status" text="Сектор 00 · Операторская (SOC)" class="map-subtitle" />
+          <ui:Label text="Карта комплекса" class="map-title" />
+          <ui:Label name="map-player-status" text="Операторская" class="map-subtitle" />
         </ui:VisualElement>
         <ui:Button name="close-map" text="Закрыть · M / Esc" class="quiet-button" />
       </ui:VisualElement>
-      <ui:ScrollView name="map-scroll" mode="Vertical" class="map-scroll">
-        <ui:VisualElement name="map-sectors-container" class="map-sectors-container" />
-      </ui:ScrollView>
+      <ui:VisualElement class="map-toolbar">
+        <ui:VisualElement name="map-levels" class="map-levels" />
+        <ui:VisualElement class="header-space" />
+        <ui:Button name="map-overview" text="Обзор" tooltip="Показать весь комплекс" />
+        <ui:Button name="map-center" text="К игроку" />
+        <ui:Button name="map-minus" text="−" tooltip="Отдалить" />
+        <ui:Button name="map-plus" text="+" tooltip="Приблизить" />
+      </ui:VisualElement>
+      <ui:VisualElement name="map-plan" class="map-plan" />
+      <ui:Label text="● Терминал     ◆ Шлюз     ◇ Предмет     ▲ Вы" class="map-legend" />
     </ui:VisualElement>
   </ui:VisualElement>
   <ui:VisualElement name="death-screen" class="death-screen overlay">
@@ -133,5 +162,4 @@
       </ui:VisualElement>
     </ui:VisualElement>
   </ui:VisualElement>
-  <ui:VisualElement name="damage-vignette" class="damage-vignette" picking-mode="Ignore" />
 </ui:UXML>

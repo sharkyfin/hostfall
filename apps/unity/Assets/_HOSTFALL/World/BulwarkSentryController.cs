@@ -277,10 +277,10 @@ namespace Hostfall.World
                     }
                 }
 
-                // Advance slowly toward player if beyond 4m
+                // Advance slowly toward player if beyond 4m (with collision sweep)
                 if (Vector3.Distance(transform.position, player.transform.position) > 4.5f)
                 {
-                    transform.position += transform.forward * (pursueSpeed * Time.deltaTime);
+                    PerformMovement(transform.forward * (pursueSpeed * Time.deltaTime));
                 }
             }
             else
@@ -292,7 +292,7 @@ namespace Hostfall.World
                     searchlight.intensity = 3.5f;
                 }
 
-                // Patrol
+                // Patrol with collision sweep
                 Vector3 dest = patrolTarget == 0 ? patrolA : patrolB;
                 dest.y = transform.position.y;
                 Vector3 step = dest - transform.position;
@@ -300,7 +300,7 @@ namespace Hostfall.World
                 {
                     Quaternion walkRot = Quaternion.LookRotation(step.normalized);
                     transform.rotation = Quaternion.RotateTowards(transform.rotation, walkRot, 40f * Time.deltaTime);
-                    transform.position += transform.forward * (patrolSpeed * Time.deltaTime);
+                    PerformMovement(transform.forward * (patrolSpeed * Time.deltaTime));
                 }
                 else
                 {
@@ -311,6 +311,38 @@ namespace Hostfall.World
                 {
                     turretTransform.localRotation = Quaternion.RotateTowards(turretTransform.localRotation, Quaternion.identity, 50f * Time.deltaTime);
                 }
+            }
+        }
+
+        private void PerformMovement(Vector3 delta)
+        {
+            float dist = delta.magnitude;
+            if (dist < 0.0001f) return;
+            Vector3 dir = delta / dist;
+            const float radius = 0.65f;
+            const float height = 1.9f;
+            Vector3 bot = transform.position + Vector3.up * radius;
+            Vector3 top = transform.position + Vector3.up * Mathf.Max(radius, height - radius);
+
+            if (Physics.CapsuleCast(bot, top, radius, dir, out RaycastHit hit, dist + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+            {
+                float allowed = Mathf.Max(0f, hit.distance - 0.04f);
+                transform.position += dir * allowed;
+                Vector3 slide = Vector3.ProjectOnPlane(dir, hit.normal);
+                slide.y = 0;
+                float rem = dist - allowed;
+                if (rem > 0.001f && slide.sqrMagnitude > 0.001f)
+                {
+                    slide.Normalize();
+                    if (!Physics.CapsuleCast(bot + dir * allowed, top + dir * allowed, radius, slide, out _, rem + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+                    {
+                        transform.position += slide * rem;
+                    }
+                }
+            }
+            else
+            {
+                transform.position += delta;
             }
         }
 

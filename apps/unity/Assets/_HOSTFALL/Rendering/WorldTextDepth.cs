@@ -7,19 +7,42 @@ namespace Hostfall.Rendering
     {
         [SerializeField] private Shader depthShader;
         private Material material;
+        private Material original;
         private TextMesh label;
+        private MeshRenderer textRenderer;
         public void Configure(Shader shader) { depthShader=shader; }
+
+        public static Material CreateDepthMaterial(TextMesh text, Shader shader)
+        {
+            var depth = new Material(shader)
+            {
+                name = "Depth-tested world text",
+                mainTexture = text.font.material.mainTexture,
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            depth.SetFloat("_ZTest", (float)UnityEngine.Rendering.CompareFunction.LessEqual);
+            return depth;
+        }
+
         private void OnEnable()
         {
             label=GetComponent<TextMesh>();
             if (label.font==null || depthShader==null) return;
-            material=new Material(depthShader) { name="Depth-tested text / "+name, mainTexture=label.font.material.mainTexture };
-            GetComponent<MeshRenderer>().sharedMaterial=material;
+            textRenderer = GetComponent<MeshRenderer>();
+            original = textRenderer.sharedMaterial;
+            material = CreateDepthMaterial(label, depthShader);
+            textRenderer.sharedMaterial = material;
             Font.textureRebuilt+=Rebuilt;
         }
         private void Rebuilt(Font font) { if (material!=null && font==label.font) material.mainTexture=font.material.mainTexture; }
-        private void LateUpdate() { if(material!=null && material.mainTexture!=label.font.material.mainTexture) material.mainTexture=label.font.material.mainTexture; }
+        // Atlas changes are delivered by Font.textureRebuilt; no per-label frame polling.
         private void OnDisable()
-        { Font.textureRebuilt-=Rebuilt; if(material!=null) Destroy(material); material=null; }
+        {
+            Font.textureRebuilt -= Rebuilt;
+            if (material == null) return;
+            if (textRenderer.sharedMaterial == material) textRenderer.sharedMaterial = original;
+            Destroy(material);
+            material = null;
+        }
     }
 }

@@ -23,7 +23,7 @@ namespace Hostfall.World
         private void OnDestroy() { if(player!=null) player.DashFeedback-=OnDash; }
         private void Update()
         {
-            if(world==null||!controls.CanExplore) return;
+            if(world==null||!controls.WorldRuns) return;
             world.Actions.Tick(Time.deltaTime);
             if(input.Pulse.WasPressedThisFrame()) TryPulse();
         }
@@ -36,7 +36,7 @@ namespace Hostfall.World
             Vector3 forward=player.ViewRotation*Vector3.forward;
             foreach(var robot in robots)
             {
-                if(robot.State.Mode==WatcherMode.Offline||robot.State.Mode==WatcherMode.Maintenance) continue;
+                if(robot == null || robot.IsDestroyed || robot.State == null || robot.State.Mode==WatcherMode.Offline||robot.State.Mode==WatcherMode.Maintenance) continue;
                 Vector3 aim=robot.transform.position+Vector3.up*.8f;
                 Vector3 delta=aim-player.Eye;
                 if(delta.magnitude>nearest||Vector3.Angle(forward,delta)>35) continue;
@@ -45,7 +45,7 @@ namespace Hostfall.World
             }
             if(selected==null)
             {
-                bool anyActive = robots != null && robots.Any(r => r != null && !r.IsDestroyed && r.State.Mode != WatcherMode.Offline && r.State.Mode != WatcherMode.Maintenance);
+                bool anyActive = robots != null && robots.Any(r => r != null && !r.IsDestroyed && r.State != null && r.State.Mode != WatcherMode.Offline && r.State.Mode != WatcherMode.Maintenance);
                 ui.ShowActionNotice(anyActive ? "Наведитесь на цель" : "Нет активных целей");
                 return false;
             }

@@ -38,6 +38,15 @@ namespace Hostfall.Devices
             EnsureAudio();
         }
 
+        private void Start()
+        {
+            EnsureAudio();
+            if (DataCartridgeState.HasCartridge || PhysicalMediaInventory.HasItem("item.cartridge.nl044"))
+            {
+                gameObject.SetActive(false);
+            }
+        }
+
         private void EnsureAudio()
         {
             if (audioSource == null)
@@ -72,6 +81,7 @@ namespace Hostfall.Devices
             if (DataCartridgeState.HasCartridge) return;
 
             DataCartridgeState.HasCartridge = true;
+            PhysicalMediaInventory.Collect("item.cartridge.nl044");
 
             if (audioSource != null && clipPickup != null)
             {
@@ -80,7 +90,7 @@ namespace Hostfall.Devices
 
             if (ui != null)
             {
-                ui.ShowActionNotice("[+] ПОЛУЧЕН КАРТРИДЖ: " + cartridgeId + " [EMERGENCY MANIFEST]");
+                ui.ShowActionNotice("Картридж " + cartridgeId + " получен. Вернитесь к DATA-01.");
             }
 
             // Hide pickup geometry from world

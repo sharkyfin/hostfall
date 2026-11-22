@@ -6,7 +6,7 @@ using NUnit.Framework;
 // Execute the same pure EditMode cases without starting the licensed Unity Editor.
 // This does not replace PlayMode tests or Unity package/API validation.
 int passed = 0, failed = 0;
-foreach (var type in new[] { typeof(SimulationTests),typeof(ActionRouteTests) })
+foreach (var type in new[] { typeof(SimulationTests),typeof(ActionRouteTests),typeof(ComputerCampaignTests),typeof(ComputerGameTests),typeof(NetworkDefenseTests),typeof(CircuitTests),typeof(SignalTests), typeof(MinefieldTests), typeof(DetectiveTests), typeof(ContainmentTests), typeof(BufferRecallTests), typeof(FragmentDockTests), typeof(QuorumDispatchTests), typeof(IntegrityAuditTests), typeof(RecoveryProtocolTests), typeof(CrawlerAttackTests), typeof(AttackPermitTests), typeof(CoreAvatarBattleTests), typeof(FacilityMinibossTests), typeof(RobotCombatTests) })
 foreach (var method in type.GetMethods())
 {
     var cases = method.GetCustomAttributes<TestCaseAttribute>();

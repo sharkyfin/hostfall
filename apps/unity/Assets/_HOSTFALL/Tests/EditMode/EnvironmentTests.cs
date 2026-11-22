@@ -51,7 +51,9 @@ namespace Hostfall.Tests
                 var all=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<Transform>(true)).ToArray();
                 foreach(string name in new[] { "Shift notebook", "Maintenance cart", "Cooling valve" })
                 {
-                    var prop=all.Single(t=>t.name==name);
+                    var props=all.Where(t=>t.name==name).ToArray();Assert.That(props,Is.Not.Empty,name);
+                    foreach(var prop in props)
+                    {
                     var visible=prop.GetComponentsInChildren<Renderer>().Where(r=>r.enabled).ToArray(); Assert.That(visible.Length,Is.GreaterThan(0));
                     foreach(var renderer in visible) foreach(var material in renderer.sharedMaterials)
                     {
@@ -61,11 +63,16 @@ namespace Hostfall.Tests
                         Assert.That(material.GetFloat("_Surface"),Is.Zero);
                     }
                 }
-                var cart=all.Single(t=>t.name=="Maintenance cart").GetComponent<BoxCollider>();
+                }
+                foreach(var prop in all.Where(t=>t.name=="Maintenance cart"))
+                {
+                var cart=prop.GetComponent<BoxCollider>();
                 Assert.That(cart,Is.Not.Null); Assert.That(cart.isTrigger,Is.False);
                 Assert.That(cart.bounds.size.y,Is.EqualTo(1.05f).Within(.02f));
-                Assert.That(cart.bounds.max.x,Is.LessThan(4.9f));
                 Assert.That(cart.bounds.Intersects(new Bounds(new Vector3(0,1,1),new Vector3(2.5f,2,12))),Is.False);
+                }
+                var original=all.Single(t=>t.name=="Maintenance cart"&&t.root.name!="NORTHLINE / Service Bays").GetComponent<BoxCollider>();
+                Assert.That(original.bounds.max.x,Is.LessThan(4.9f));
             }
             finally { EditorSceneManager.CloseScene(scene,true); }
         }

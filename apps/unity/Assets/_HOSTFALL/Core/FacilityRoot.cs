@@ -52,10 +52,18 @@ namespace Hostfall.Core
         {
             var data = JsonUtility.FromJson<FieldContentData>(Resources.Load<TextAsset>("FieldContent").text);
             var catalog = new FieldCatalog(data);
-            string storagePath=Application.isBatchMode&&WorldSaveController.TestStorageDirectory!=null?WorldSaveController.TestStorageDirectory:Application.persistentDataPath;
-            var store = new WorldSaveStore(storagePath);
+            string storagePath=WorldSaveController.TestStorageDirectory!=null?WorldSaveController.TestStorageDirectory:Application.persistentDataPath;
+            var store = new WorldSaveStore(storagePath,mission.InteractiveComputers?"world-v3.json":"world-v2.json",mission.InteractiveComputers?3:2);
             GameSaveData saved = null; string notice = "";
             bool fresh = WorldSaveController.FreshStartRequested; WorldSaveController.FreshStartRequested = false;
+            if (fresh)
+            {
+                Hostfall.Devices.DataCartridgeState.Reset();
+                Hostfall.Devices.CoolingValveState.Reset();
+                Hostfall.Devices.CargoSwitchyardState.Reset();
+                Hostfall.Devices.UpsPowerState.Reset();
+                Hostfall.Devices.PhysicalMediaInventory.Reset();
+            }
             bool Valid(GameSaveData data)
                 {
                     var candidate = FacilitySimulation.Restore(data.simulation, mission.CreateDefinition());
@@ -90,7 +98,7 @@ namespace Hostfall.Core
             fieldUI.Initialize(Field, controls, input, ui.GetComponent<UnityEngine.UIElements.UIDocument>().rootVisualElement);
             scanner.Initialize(player, input, controls, brain.GetComponent<UnityEngine.Camera>());
             scanner.PromptChanged += ui.SetInteractionPrompt;
-            foreach (var computer in computers) computer.Initialize(Simulation, ui.OpenTerminal);
+            if(!Simulation.InteractiveComputers) foreach (var computer in computers) computer.Initialize(Simulation, ui.OpenTerminal);
             door.Initialize(Simulation);
             foreach (var d in FindObjectsByType<FacilityDoor>(FindObjectsSortMode.None))
                 if (d != door) d.Initialize(Simulation);
@@ -103,11 +111,16 @@ namespace Hostfall.Core
                     w.Initialize(Simulation, player, controls);
             }
             foreach(var enemy in enemies) enemy.Initialize(Simulation,player,controls);
-            foreach (var note in documents) note.Initialize(fieldUI);
+            foreach (var note in Simulation.InteractiveComputers
+                ? FindObjectsByType<FieldDocument>(FindObjectsSortMode.None) : documents)
+                note.Initialize(fieldUI);
             var nonPlayerWatchers = allWatchers.Where(w => w != watcher).ToArray();
             persistence.Initialize(Simulation, Field, player, rig, door, watcher, controls, input, store, saved, notice, Valid, nonPlayerWatchers.Length > 0 ? nonPlayerWatchers : enemies);
             ui.Initialize(Simulation, controls, input, Field, fieldUI, persistence);
-            foreach (var dtc in FindObjectsByType<DoorTerminalConsole>(FindObjectsSortMode.None))
+            foreach(var panel in FindObjectsByType<ServiceButtonPanel>(FindObjectsSortMode.None))panel.Initialize(Simulation);
+            if(!Simulation.InteractiveComputers) foreach(var screen in FindObjectsByType<ComputerScreen>(FindObjectsSortMode.None))
+            {var surface=screen.GetComponent<WorkstationSurface>();if(surface!=null)screen.Bind(Simulation,surface.Device);}
+            if(!Simulation.InteractiveComputers) foreach (var dtc in FindObjectsByType<DoorTerminalConsole>(FindObjectsSortMode.None))
                 dtc.Initialize(ui, Simulation);
             foreach (var drone in FindObjectsByType<LensDroneController>(FindObjectsSortMode.None))
                 drone.Initialize(player, ui, allWatchers);
@@ -127,8 +140,20 @@ namespace Hostfall.Core
                 ammo.Initialize(ui);
             foreach (var kit in FindObjectsByType<HealthKitPickup>(FindObjectsSortMode.None))
                 kit.Initialize(ui);
+            foreach (var media in FindObjectsByType<Hostfall.Devices.PhysicalMediaItem>(FindObjectsSortMode.None))
+                media.Initialize(ui);
+            foreach (var bulwark in FindObjectsByType<BulwarkSentryController>(FindObjectsSortMode.None))
+                bulwark.Initialize(player, ui);
+            foreach (var bastion in FindObjectsByType<BastionSentryController>(FindObjectsSortMode.None))
+                bastion.Initialize(player, ui);
+            foreach (var hound in FindObjectsByType<TraceHoundController>(FindObjectsSortMode.None))
+                hound.Initialize(player, ui);
+            foreach (var jammer in FindObjectsByType<JammerRobotController>(FindObjectsSortMode.None))
+                jammer.Initialize(player, ui);
             foreach (var crawler in FindObjectsByType<TrackedSentryController>(FindObjectsSortMode.None))
                 crawler.Initialize(player, ui, controls);
+            gameObject.AddComponent<RobotNavigationScheduler>();
+            gameObject.AddComponent<WebLightOptimizer>();
             var weapon = player.GetComponent<PlayerWeapon>() ?? player.gameObject.AddComponent<PlayerWeapon>();
             weapon.Initialize(player, input, controls, ui);
             var death = player.GetComponent<DeathController>() ?? player.gameObject.AddComponent<DeathController>();
@@ -137,8 +162,58 @@ namespace Hostfall.Core
             health.Initialize(controls, ui, death);
             ui.BindPlayerHealth(health, death);
             persistence.BindHealth(health, saved?.health);
+            Physics.IgnoreLayerCollision(CollisionLayers.Player,CollisionLayers.RobotHitbox,true);
+            foreach(var actor in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None).OfType<IDamageable>().Where(a=>a is WatcherController||a is TrackedSentryController).ToArray())
+            {
+                var component=(MonoBehaviour)actor;
+                var combat=component.GetComponent<RobotCombatController>()??component.gameObject.AddComponent<RobotCombatController>();
+                combat.Initialize(Simulation,controls);
+                if(component is TrackedSentryController)
+                {
+                    var boss=component.GetComponent<CrawlerMinibossController>()??component.gameObject.AddComponent<CrawlerMinibossController>();
+                    boss.Initialize(player,controls,Simulation.InteractiveComputers);
+                }
+            }
+            if (Simulation.InteractiveComputers)
+                ui.BindGuardians(FindObjectsByType<CrawlerMinibossController>());
+            if(saved?.weapon!=null)weapon.Restore(saved.weapon);
+            else if(saved?.player.hasWeapon==true)weapon.Equip();
+            weapon.RestoreWorldDrops();
             var actionController=gameObject.AddComponent<FacilityActionController>();
             actionController.Initialize(Simulation,player,controls,input,ui,allWatchers);
+            if(Simulation.InteractiveComputers)
+            {
+                var desktop=ui.gameObject.AddComponent<ComputerRuntimeUI>();
+                desktop.Initialize(Simulation.ComputerCampaign,controls,rig,ui.GetComponent<UnityEngine.UIElements.UIDocument>());
+                var ambush = player.gameObject.AddComponent<TerminalAmbush>();
+                ambush.Initialize(Simulation.ComputerCampaign, controls, desktop, ui);
+                desktop.BindAmbush(ambush);
+                foreach (var enemy in allWatchers) enemy.BindTerminalAmbush(ambush);
+                GetComponent<ComputerWorldController>().Initialize(Simulation.ComputerCampaign, controls, player);
+                var avatar = FindAnyObjectByType<CoreAvatarEncounter>();
+                if (avatar != null)
+                {
+                    avatar.Initialize(Simulation.ComputerCampaign, controls, player, ui);
+                    ui.BindCoreAvatar(avatar);
+                }
+                var squads = gameObject.AddComponent<WatcherSquads>();
+                squads.Initialize(controls, Simulation.ComputerCampaign, allWatchers);
+                FindAnyObjectByType<LogisticsLockdown>()?.Initialize(Simulation.ComputerCampaign, controls, player, desktop, ui);
+                var minibosses = FindObjectsByType<FacilityMiniboss>(FindObjectsSortMode.None);
+                foreach (var bossEncounter in minibosses) bossEncounter.Initialize(Simulation.ComputerCampaign, controls, player, ui);
+                ui.BindMinibosses(minibosses);
+                var reveal = FindAnyObjectByType<CoreRevealSequence>();
+                if (reveal != null)
+                    reveal.Initialize(Simulation.ComputerCampaign, controls, player, rig, persistence,
+                        ui.GetComponent<UnityEngine.UIElements.UIDocument>().rootVisualElement, () =>
+                        {
+                            squads.enabled = false;
+                            foreach (var component in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+                                if (component is CrawlerMinibossController ||
+                                    component is IDamageable && component is not (PlayerHealth or CoreAvatarEncounter))
+                                    component.enabled = false;
+                        });
+            }
         }
         private void OnDestroy() { Field?.Dispose(); if (scanner != null && ui != null) scanner.PromptChanged -= ui.SetInteractionPrompt; }
     }

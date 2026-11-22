@@ -9,6 +9,7 @@ namespace Hostfall.Devices
 {
     public sealed class DoorTerminalConsole : MonoBehaviour, IInteractable
     {
+        [SerializeField] private string terminalId = "";
         [SerializeField] private FacilityDoor targetDoor;
         [SerializeField] private FacilityDoor[] additionalDoors = Array.Empty<FacilityDoor>();
         [SerializeField] private DeviceId deviceId;
@@ -31,6 +32,7 @@ namespace Hostfall.Devices
         private FacilitySimulation simulation;
         private bool completed;
 
+        public string TerminalId { get => !string.IsNullOrEmpty(terminalId) ? terminalId : (scenarioId ?? deviceId.ToString()); set => terminalId = value; }
         public DeviceId DeviceId => deviceId;
         public bool Completed => completed;
         public bool ShouldConnect => !completed;
@@ -40,7 +42,9 @@ namespace Hostfall.Devices
             {
                 if (completed) return completedPromptText;
                 if ((deviceId == DeviceId.Data01 || scenarioId == "t07_data") && !DataCartridgeState.IsInserted)
-                    return "[!] ТРЕБУЕТСЯ КАРТРИДЖ NL-CART-044 [E - диагностика]";
+                    return DataCartridgeState.HasCartridge
+                        ? "Вставьте картридж в считыватель слева от экрана"
+                        : "[E] Диагностика · нужен картридж с верхней площадки";
                 if ((deviceId == DeviceId.Pwr01 || scenarioId == "t08_pwr") && !CoolingValveState.IsOpen)
                     return "[!] ПЕРЕГРЕВ КОНТУРА 842 K · ТРЕБУЕТСЯ КЛАПАН V-102 [E - диагностика]";
                 return promptText;
@@ -74,10 +78,13 @@ namespace Hostfall.Devices
             simulation = sim;
             if (simulation != null)
             {
-                bool wasCompleted = false;
-                if (deviceId == DeviceId.Data01 && simulation.Mission.CompletedObjectives > 3) wasCompleted = true;
+                bool wasCompleted = TerminalScenarioCatalog.TryGetScenario(string.IsNullOrEmpty(scenarioId)?deviceId.ToString():scenarioId,out var savedScenario)&&simulation.Screens.FindById(savedScenario.ScenarioId)?.Rewarded==true;
+                string eventId = "EVT_" + (string.IsNullOrEmpty(scenarioId) ? deviceId.ToString() : scenarioId).ToUpperInvariant();
+                if (TerminalScenarioCatalog.HasExecutedEvent(eventId)) wasCompleted = true;
+                else if (deviceId == DeviceId.Data01 && simulation.Mission.CompletedObjectives > 3) wasCompleted = true;
                 else if (deviceId == DeviceId.Pwr01 && simulation.Mission.CompletedObjectives > 4) wasCompleted = true;
                 else if (deviceId == DeviceId.Qnt01 && simulation.Mission.CompletedObjectives > 5) wasCompleted = true;
+                else if (simulation.Terminals != null && simulation.Terminals.KnowsDevice(deviceId) && simulation.Terminals.IsComplete(deviceId)) wasCompleted = true;
 
                 if (wasCompleted)
                 {
@@ -110,7 +117,7 @@ namespace Hostfall.Devices
                 TerminalScenarioCatalog.TryGetScenario(deviceId.ToString(), out scenario);
 
             bool prerequisiteMet = true;
-            if (deviceId == DeviceId.Data01 || scenarioId == "t07_data")
+            if (!completed && (deviceId == DeviceId.Data01 || scenarioId == "t07_data"))
             {
                 if (!DataCartridgeState.IsInserted)
                 {
@@ -118,7 +125,7 @@ namespace Hostfall.Devices
                     TerminalScenarioCatalog.TryGetScenario("t07_data_unmet", out scenario);
                 }
             }
-            else if (deviceId == DeviceId.Pwr01 || scenarioId == "t08_pwr")
+            else if (!completed && (deviceId == DeviceId.Pwr01 || scenarioId == "t08_pwr"))
             {
                 if (!CoolingValveState.IsOpen)
                 {
@@ -187,6 +194,10 @@ namespace Hostfall.Devices
 
             string eventId = "EVT_" + (string.IsNullOrEmpty(scenarioId) ? deviceId.ToString() : scenarioId).ToUpperInvariant();
             TerminalScenarioCatalog.MarkEventExecuted(eventId);
+            if (deviceId == DeviceId.Rbt01 || scenarioId == "t04_robo")
+            {
+                TerminalScenarioCatalog.MarkEventExecuted("EVT_RBT01_DEFENSE_STANDBY");
+            }
 
             if (targetDoor != null) targetDoor.UnlockAndOpen();
             if (additionalDoors != null)

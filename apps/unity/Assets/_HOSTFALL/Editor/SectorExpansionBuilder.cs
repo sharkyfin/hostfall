@@ -94,7 +94,7 @@ namespace Hostfall.Editor
                 "Защитные ворота заблокированы · завершите сеанс на CORE-01",
                 "[E] Открыть защитные ворота хранилища",
                 "[E] Закрыть защитные ворота хранилища",
-                true, Vector3.right, 2.6f, 1.8f);
+                true, Vector3.right, 2.6f, 1.8f, id: "door.sec02.vault");
 
             // Illumination and wayfinding for Vault Gate portal
             CreatePointLight("Vault Threshold Downlight", vaultGateGroup, new Vector3(0, 3.1f, 0.15f), new Color(0.45f, 0.85f, 1.0f), 5.0f, 8.0f);
@@ -168,8 +168,8 @@ namespace Hostfall.Editor
                 CreateBox("Cable Hanger Rod Right " + z, new Vector3(3.2f, 5.1f, z), new Vector3(0.06f, 0.6f, 0.06f), matDark, sector02, false);
             }
 
-            // High-Density Dataset Rack Clusters (West server bays flanking the main aisle)
-            BuildDatasetMonolith(sector02, new Vector3(-4.8f, 0, 19.5f), matDark, matScreen, matAmber);
+            // High-Density Dataset Rack Clusters (West server bays flanking the main aisle, clear of stairs)
+            BuildDatasetMonolith(sector02, new Vector3(-4.8f, 0, 35.5f), matDark, matScreen, matAmber);
             BuildDatasetMonolith(sector02, new Vector3(-4.8f, 0, 32.5f), matDark, matScreen, matAmber);
 
             // =========================================================================
@@ -317,7 +317,7 @@ namespace Hostfall.Editor
                 "Шлюз энергоцентра заблокирован · авторизуйтесь на терминале DATA-01",
                 "[E] Открыть гермошлюз энергоцентра",
                 "[E] Закрыть гермошлюз энергоцентра",
-                true, Vector3.up, 3.2f, 1.8f);
+                true, Vector3.up, 3.2f, 1.8f, id: "door.sec03.energy");
 
             // Door Access Console mounted on jamb wall facing the room
             var doorAccessGroup = new GameObject("Door Access Console").transform;
@@ -465,7 +465,7 @@ namespace Hostfall.Editor
                 "Крио-шлюз заблокирован · запустите подстанцию на PWR-01",
                 "[E] Открыть криогенный шлюз",
                 "[E] Закрыть криогенный шлюз",
-                true, Vector3.up, 3.6f, 1.8f);
+                true, Vector3.up, 3.6f, 1.8f, id: "door.sec04.cryo");
 
             // Transom Bulkhead at Z = 38.0 sealing height differences into Sector 04 (Y=7.55)
             CreateBox("Sector02-to-Sector04 Bulkhead", new Vector3(0, 6.475f, 38.0f), new Vector3(14.0f, 2.15f, 0.5f), matDark, root.transform, true);
@@ -588,7 +588,7 @@ namespace Hostfall.Editor
                 "Грузовой шлюз заблокирован · выполните согласование на QNT-01",
                 "[E] Открыть грузовой шлюз логистического узла",
                 "[E] Закрыть грузовой шлюз логистического узла",
-                true, Vector3.up, 3.8f, 1.8f);
+                true, Vector3.up, 3.8f, 1.8f, id: "door.sec05.logistics");
 
             CreateSignboard(logisticsGateGroup, "СЕКТОР 05: ЛОГИСТИКА // SEC-05 LOGISTICS", "SEC-05", new Vector3(0, 4.35f, -0.26f), 0, new Color(0.35f, 0.85f, 1.0f));
             CreateSpotLight("Logistics Portal Spotlight", logisticsGateGroup, new Vector3(0, 4.2f, -0.4f), new Vector3(65, 0, 0), new Color(0.85f, 0.95f, 1.0f), 7.0f, 16f, 85f);
@@ -604,19 +604,22 @@ namespace Hostfall.Editor
             // Central Quantum Relay Bridge spanning continuously over the trench from Z = 38.0 to Z = 62.0
             CreateBox("Relay Bridge Walkway", new Vector3(0, 0, 50.0f), new Vector3(4.2f, 0.25f, 24.0f), matMetal, sector04, true);
 
-            // Side Safety Railings along the West and East edges of the bridge (Z = 38.0 to Z = 62.0 with crossway opening at Z = 50)
-            int[] railZ = new[] { 40, 44, 56, 60 };
-            for (int i = 0; i < railZ.Length; i++)
+            // Side Safety Railings along the West and East edges of the bridge (Z = 38.0 to Z = 62.0)
+            // Clear egress stair openings at Z = 41.0 (South Trench Landing) and Z = 59.0 (North Trench Landing)
+            // Crossway opening at Z = 50.0 (Z: 48.8..51.2)
+            for (int side = -1; side <= 1; side += 2)
             {
-                int rz = railZ[i];
-                ModularKit.Place("Platform_Rails_4Wide", sector04, new Vector3(-2.05f, 0.125f, rz), new Vector3(0.08f, 1.1f, 4.0f), 90, true);
-                ModularKit.Place("Platform_Rails_4Wide", sector04, new Vector3(2.05f, 0.125f, rz), new Vector3(0.08f, 1.1f, 4.0f), -90, true);
+                float rx = side * 2.05f;
+                float yaw = side < 0 ? 90 : -90;
+                // South stub (Z: 38.0..40.0, clear of stairs at Z=41.0)
+                ModularKit.Place("Platform_Rails_4", sector04, new Vector3(rx, 0.125f, 39.0f), new Vector3(0.08f, 1.1f, 2.0f), yaw, true);
+                // Mid-South rail (Z: 42.0..48.8)
+                ModularKit.Place("Platform_Rails_4Wide", sector04, new Vector3(rx, 0.125f, 45.4f), new Vector3(0.08f, 1.1f, 6.8f), yaw, true);
+                // Mid-North rail (Z: 51.2..58.0)
+                ModularKit.Place("Platform_Rails_4Wide", sector04, new Vector3(rx, 0.125f, 54.6f), new Vector3(0.08f, 1.1f, 6.8f), yaw, true);
+                // North stub (Z: 60.0..62.0, clear of stairs at Z=59.0)
+                ModularKit.Place("Platform_Rails_4", sector04, new Vector3(rx, 0.125f, 61.0f), new Vector3(0.08f, 1.1f, 2.0f), yaw, true);
             }
-            // Half railings flanking the crossway opening (Z: 47..48.8 and 51.2..53)
-            ModularKit.Place("Platform_Rails_4", sector04, new Vector3(-2.05f, 0.125f, 47.4f), new Vector3(0.08f, 1.1f, 2.4f), 90, true);
-            ModularKit.Place("Platform_Rails_4", sector04, new Vector3(2.05f, 0.125f, 47.4f), new Vector3(0.08f, 1.1f, 2.4f), -90, true);
-            ModularKit.Place("Platform_Rails_4", sector04, new Vector3(-2.05f, 0.125f, 52.6f), new Vector3(0.08f, 1.1f, 2.4f), 90, true);
-            ModularKit.Place("Platform_Rails_4", sector04, new Vector3(2.05f, 0.125f, 52.6f), new Vector3(0.08f, 1.1f, 2.4f), -90, true);
 
             // Crossway service walkways connecting central bridge to East and West cryogenic platforms
             CreateBox("West Platform Crossway", new Vector3(-5.5f, 0, 50.0f), new Vector3(6.8f, 0.22f, 2.4f), matMetal, sector04, true);
@@ -664,7 +667,7 @@ namespace Hostfall.Editor
                 "Служебный шлюз заблокирован · активируйте обходной контур на QNT-01",
                 "[E] Открыть служебный шлюз",
                 "[E] Закрыть служебный шлюз",
-                true, Vector3.up, 3.0f, 1.8f);
+                true, Vector3.up, 3.0f, 1.8f, id: "door.sec01.exec");
 
             // Quantum Terminal (QNT-01) on the central bridge — Hooked to unlock execDoor and logisticsDoor!
             var qntConsole = BuildQuantumTerminal(sector04, new Vector3(0, 0.25f, 50.0f), execDoor, matMetal, matDark, matAmber, matScreen);
@@ -815,7 +818,7 @@ namespace Hostfall.Editor
                 "Шлюз сборочного цеха заблокирован · авторизуйтесь на терминале CARGO-WIN",
                 "[E] Открыть гермошлюз сборочного цеха",
                 "[E] Закрыть гермошлюз сборочного цеха",
-                true, Vector3.right, 3.0f, 1.8f);
+                true, Vector3.right, 3.0f, 1.8f, id: "door.sec06.robo");
 
             CreateSignboard(roboAirlockGroup, "СЕКТОР 06: СБОРОЧНЫЙ ЦЕХ РОБОТОТЕХНИКИ", "SEC-06", new Vector3(0, 4.15f, -0.24f), 0, new Color(0.95f, 0.65f, 0.25f));
 
@@ -851,14 +854,14 @@ namespace Hostfall.Editor
             mezz.SetParent(sector05, false);
             mezz.position = new Vector3(8.5f, 0, 72.0f);
 
-            CreateBox("Mezzanine Slab", new Vector3(0, 0.5f, 0), new Vector3(10.0f, 1.0f, 14.0f), matFloor, mezz, true);
-            // Mezzanine Access Stairs
+            CreateBox("Mezzanine Slab", new Vector3(0.6f, 0.5f, 0), new Vector3(8.8f, 1.0f, 14.0f), matFloor, mezz, true);
+            // Mezzanine Access Stairs (stairs at X=-4.5 arrive flush at mezzanine edge X=-3.8)
             ModularKit.Place("Platform_Stairs_2", mezz, new Vector3(-4.5f, 0, -5.5f), new Vector3(1.4f, 1.0f, 2.4f), 0, true);
             ModularKit.Place("Platform_Stairs_2", mezz, new Vector3(-4.5f, 0, 5.5f), new Vector3(1.4f, 1.0f, 2.4f), 180, true);
-            // Perimeter Safety Railings on Mezzanine
-            ModularKit.Place("Platform_Rails_4Wide", mezz, new Vector3(-4.95f, 1.0f, 0), new Vector3(0.08f, 1.1f, 8.0f), 0, true);
-            ModularKit.Place("Platform_Rails_4Wide", mezz, new Vector3(0, 1.0f, -6.95f), new Vector3(9.5f, 1.1f, 0.08f), 90, true);
-            ModularKit.Place("Platform_Rails_4Wide", mezz, new Vector3(0, 1.0f, 6.95f), new Vector3(9.5f, 1.1f, 0.08f), -90, true);
+            // Perimeter Safety Railings on Mezzanine (leaving stair entries clear)
+            ModularKit.Place("Platform_Rails_4Wide", mezz, new Vector3(-3.75f, 1.0f, 0), new Vector3(0.08f, 1.1f, 8.6f), 0, true);
+            ModularKit.Place("Platform_Rails_4Wide", mezz, new Vector3(0.6f, 1.0f, -6.95f), new Vector3(8.7f, 1.1f, 0.08f), 90, true);
+            ModularKit.Place("Platform_Rails_4Wide", mezz, new Vector3(0.6f, 1.0f, 6.95f), new Vector3(8.7f, 1.1f, 0.08f), -90, true);
 
             // Freight Lift Cage (Loop 3) at X = 12.0, Z = 68.0
             CreateBox("Freight Lift Base", new Vector3(3.5f, 1.05f, -3.5f), new Vector3(2.6f, 0.15f, 2.6f), matMetal, mezz, true);
@@ -960,15 +963,15 @@ namespace Hostfall.Editor
             cat06.SetParent(sector06, false);
             cat06.position = new Vector3(33.5f, 4.2f, 91.5f);
 
-            CreateBox("Catwalk Slab", Vector3.zero, new Vector3(28.0f, 0.2f, 3.4f), matFloor, cat06, true);
-            ModularKit.Place("Platform_Rails_4Wide", cat06, new Vector3(0, 0.1f, -1.65f), new Vector3(27.0f, 1.1f, 0.08f), 0, true);
+            CreateBox("Catwalk Slab", Vector3.zero, new Vector3(21.5f, 0.2f, 3.4f), matFloor, cat06, true);
+            ModularKit.Place("Platform_Rails_4Wide", cat06, new Vector3(0, 0.1f, -1.65f), new Vector3(21.5f, 1.1f, 0.08f), 0, true);
 
             // Catwalk Access Stairs on West and East ends
             ModularKit.Place("Platform_Stairs_4", sector06, new Vector3(20.5f, 0, 91.5f), new Vector3(1.4f, 4.2f, 4.5f), 90, true);
             ModularKit.Place("Platform_Stairs_4", sector06, new Vector3(46.5f, 0, 91.5f), new Vector3(1.4f, 4.2f, 4.5f), -90, true);
 
             // RBT-01 Robotics Diagnostics Terminal on Observation Catwalk
-            BuildRoboTerminal(cat06, new Vector3(0, 0.1f, 0.8f), null, matMetal, matDark, matAmber, matScreen);
+            var roboConsole = BuildRoboTerminal(cat06, new Vector3(0, 0.1f, 0.8f), null, matMetal, matDark, matAmber, matScreen);
 
             // Proving Grounds Arena (South Bay: X: 20..47, Z: 66..76)
             ModularKit.Place("Prop_Barrel_Large", sector06, new Vector3(22.0f, 0, 68.0f), new Vector3(1.2f, 1.4f, 1.2f), 15, true);
@@ -1032,7 +1035,7 @@ namespace Hostfall.Editor
                 "Шлюз безопасности заблокирован · требуется авторизация на SEC-07",
                 "[E] Открыть шлюз безопасности в операторскую",
                 "[E] Закрыть шлюз безопасности",
-                true, Vector3.forward, 2.6f, 1.8f);
+                true, Vector3.forward, 2.6f, 1.8f, id: "door.sec07.soc");
 
             CreateSignboard(socSecDoorGroup, "СЛУЖЕБНЫЙ ПРОХОД: СЕКТОР 07 // БЕЗОПАСНОСТЬ", "SEC-07-SOC", new Vector3(0.24f, 3.35f, 0), 90, new Color(0.95f, 0.75f, 0.25f));
 
@@ -1050,11 +1053,12 @@ namespace Hostfall.Editor
             BuildArmoredDoorLeaf(sec07Leaf, 3.0f, 3.45f, 0.22f, 1.8f, 1.4f, 0.45f, matDark, matGlass, matMetal, matAmber, "SEC07");
 
             var sec07Door = sec07GateGroup.gameObject.AddComponent<FacilityDoor>();
-            sec07Door.Configure(sec07Leaf, DoorAccessCondition.AlwaysUnlocked,
-                "Шлюз службы безопасности разблокирован",
+            sec07Door.Configure(sec07Leaf, DoorAccessCondition.ManualUnlockOnly,
+                "Шлюз службы безопасности заблокирован · требуется авторизация на RBT-01",
                 "[E] Открыть шлюз службы безопасности",
                 "[E] Закрыть шлюз службы безопасности",
-                false, Vector3.right, 3.0f, 1.8f);
+                false, Vector3.right, 3.0f, 1.8f, id: "door.sec07.citadel");
+            if (roboConsole != null) roboConsole.AddTargetDoor(sec07Door);
 
             CreateSignboard(sec07GateGroup, "СЕКТОР 07: ЦИТАДЕЛЬ БЕЗОПАСНОСТИ", "SEC-07", new Vector3(0, 3.85f, 0.24f), 180, new Color(1.0f, 0.85f, 0.3f));
 
@@ -1092,12 +1096,12 @@ namespace Hostfall.Editor
                 CreatePointLight("Cell Luminaire " + cz, sector07, new Vector3(22.5f, 2.8f, cz + 3.25f), new Color(0.85f, 0.4f, 0.1f), 1.8f, 4.5f);
             }
 
-            // Multi-Level Catwalk Tier 1 (Y = 3.2m)
+            // Multi-Level Catwalk Tier 1 (Y = 3.2m, Z: 24.0..48.0, flush with top of stairs at Z=24.0)
             var catT1 = new GameObject("Atrium Catwalk Tier 1").transform;
             catT1.SetParent(sector07, false);
             catT1.position = new Vector3(34.0f, 3.2f, 35.0f);
-            CreateBox("Catwalk T1 Slab", Vector3.zero, new Vector3(14.0f, 0.2f, 26.0f), matFloor, catT1, true);
-            ModularKit.Place("Platform_Rails_4Wide", catT1, new Vector3(-6.9f, 0.1f, 0), new Vector3(0.08f, 1.1f, 25.0f), 0, true);
+            CreateBox("Catwalk T1 Slab", new Vector3(0, 0, 1.0f), new Vector3(14.0f, 0.2f, 24.0f), matFloor, catT1, true);
+            ModularKit.Place("Platform_Rails_4Wide", catT1, new Vector3(-6.9f, 0.1f, 1.0f), new Vector3(0.08f, 1.1f, 23.5f), 0, true);
 
             // Stairs to Catwalk Tier 1
             ModularKit.Place("Platform_Stairs_4", sector07, new Vector3(38.0f, 0, 22.0f), new Vector3(1.4f, 3.2f, 4.0f), 0, true);
@@ -1168,7 +1172,7 @@ namespace Hostfall.Editor
                 "Крио-шлюз нейроархива разблокирован",
                 "[E] Открыть крио-шлюз нейроархива",
                 "[E] Закрыть крио-шлюз нейроархива",
-                false, Vector3.forward, 3.0f, 1.8f);
+                false, Vector3.forward, 3.0f, 1.8f, id: "door.sec08.neuro");
 
             CreateSignboard(neuroGateGroup, "СЕКТОР 08: НЕЙРОАРХИВ И БИОСТАЗ", "SEC-08", new Vector3(0.24f, 3.85f, 0), 90, new Color(0.35f, 0.9f, 1.0f));
 
@@ -1190,7 +1194,7 @@ namespace Hostfall.Editor
                 "Гермошлюз хранилища памяти заблокирован · требуется авторизация на NEURO-MAC",
                 "[E] Открыть шлюз хранилища памяти",
                 "[E] Закрыть шлюз хранилища памяти",
-                true, Vector3.right, 3.0f, 1.8f);
+                true, Vector3.right, 3.0f, 1.8f, id: "door.sec08.memvault");
 
             CreateSignboard(memVaultGateGroup, "ГЛУБОКОЕ ХРАНИЛИЩЕ ПАМЯТИ // MEMORY VAULT", "MEM-VAULT", new Vector3(0, 3.85f, 0.24f), 180, new Color(0.2f, 0.85f, 1.0f));
 
@@ -1304,7 +1308,7 @@ namespace Hostfall.Editor
                 "Гермошлюз диспетчерской кластера разблокирован",
                 "[E] Открыть шлюз диспетчерской",
                 "[E] Закрыть шлюз диспетчерской",
-                false, Vector3.right, 3.2f, 1.8f);
+                false, Vector3.right, 3.2f, 1.8f, id: "door.sec09.cloud");
 
             CreateSignboard(s09GateGroup, "СЕКТОР 09: УПРАВЛЕНИЕ КЛАСТЕРОМ И ДИСПЕТЧЕРСКАЯ // CLUSTER CONTROL", "SEC-09", new Vector3(0, 3.85f, -0.24f), 0, new Color(0.35f, 0.85f, 1.0f));
 
@@ -1333,12 +1337,13 @@ namespace Hostfall.Editor
             CreateBox("S09 Dispatch West Wall", new Vector3(17.8f, 4.5f, 113.5f), new Vector3(0.4f, 9.0f, 23.0f), matConcrete, sector09, true);
             CreateBox("S09 Dispatch East Wall", new Vector3(54.2f, 4.5f, 113.5f), new Vector3(0.4f, 9.0f, 23.0f), matConcrete, sector09, true);
 
-            // Elevated Mezzanine Catwalk at Y = 3.6m (Z = 118..124)
+            // Elevated Mezzanine Catwalk at Y = 3.6m (Z = 118..124, extending to X=19.0 to align with stairs)
             var dispatchMezz = new GameObject("Dispatch Observation Mezzanine").transform;
             dispatchMezz.SetParent(sector09, false);
             dispatchMezz.position = new Vector3(36.0f, 3.6f, 121.0f);
-            CreateBox("Mezzanine Slab", Vector3.zero, new Vector3(28.0f, 0.25f, 6.0f), matFloor, dispatchMezz, true);
-            ModularKit.Place("Platform_Rails_4Wide", dispatchMezz, new Vector3(0, 0.1f, -2.9f), new Vector3(26.0f, 1.1f, 0.08f), 90, true);
+            CreateBox("Mezzanine Slab", new Vector3(-1.0f, 0, 0), new Vector3(32.0f, 0.25f, 6.0f), matFloor, dispatchMezz, true);
+            // South railing leaving stairs opening at X: 19..21.5
+            ModularKit.Place("Platform_Rails_4Wide", dispatchMezz, new Vector3(1.0f, 0.1f, -2.9f), new Vector3(28.0f, 1.1f, 0.08f), 90, true);
             ModularKit.Place("Platform_Stairs_4", sector09, new Vector3(20.0f, 0, 118.0f), new Vector3(1.4f, 3.6f, 4.5f), 0, true);
 
             // Panoramic curved holographic display panels on North Wall
@@ -1370,7 +1375,7 @@ namespace Hostfall.Editor
                 "Гермошлюз ядра заблокирован · требуется подтверждение кворума на CLOUD-09",
                 "[E] Открыть шлюз машинного амфитеатра",
                 "[E] Закрыть шлюз машинного амфитеатра",
-                true, Vector3.up, 3.8f, 2.0f);
+                true, Vector3.up, 3.8f, 2.0f, id: "door.sec10.super");
 
             CreateSignboard(s10GateGroup, "СЕКТОР 10: МАШИННЫЙ АМФИТЕАТР ЯДРА // SUPER CORE", "SEC-10", new Vector3(0, 4.45f, -0.25f), 0, new Color(1.0f, 0.35f, 0.15f));
 
@@ -1415,7 +1420,7 @@ namespace Hostfall.Editor
                 "Служебный переход в логистический узел Сектора 05 разблокирован",
                 "[E] Открыть переход в логистику",
                 "[E] Закрыть переход в логистику",
-                false, Vector3.forward, 2.8f, 1.6f);
+                false, Vector3.forward, 2.8f, 1.6f, id: "door.loop5.shortcut");
 
             CreateReflectionProbe("Reflection Probe - Sector 09 Cloud Control", new Vector3(36.0f, 4.0f, 105.0f), new Vector3(45.0f, 10.0f, 45.0f), sector09);
 
@@ -1488,7 +1493,7 @@ namespace Hostfall.Editor
                 "Сердцевина доверия открыта · Доступ к мастер-терминалу разрешён",
                 "[E] Открыть шлюз сердцевины доверия",
                 "[E] Закрыть шлюз сердцевины доверия",
-                false, Vector3.up, 3.2f, 1.8f);
+                false, Vector3.up, 3.2f, 1.8f, id: "door.sec10.trust");
 
             // Evacuation Overlook Portal Gate (Z = 192.0)
             var evacGateGroup = new GameObject("Evacuation Overlook Portal (Z=192.0)").transform;
@@ -1508,7 +1513,7 @@ namespace Hostfall.Editor
                 "Смотровая площадка эвакуации заблокирована · требуется деактивация SUPER",
                 "[E] Открыть шлюз смотровой площадки",
                 "[E] Закрыть шлюз смотровой площадки",
-                true, Vector3.right, 3.0f, 1.8f);
+                true, Vector3.right, 3.0f, 1.8f, id: "door.sec10.evac");
 
             // Master Terminal: SUPER-CORE (QNX Neutrino RTOS 8.0 scenario t12_super)
             BuildSuperCoreTerminal(sector10, new Vector3(10.0f, 0, 186.0f), evacDoor, matMetal, matDark, matAmber, matScreen);
@@ -1519,8 +1524,12 @@ namespace Hostfall.Editor
             CreateBox("S10 Evac West Wall", new Vector3(1.8f, 2.4f, 199.0f), new Vector3(0.4f, 4.8f, 14.0f), matConcrete, sector10, true);
             CreateBox("S10 Evac East Wall", new Vector3(18.2f, 2.4f, 199.0f), new Vector3(0.4f, 4.8f, 14.0f), matConcrete, sector10, true);
 
+            // The observation room widens beyond the trust corridor: close both south shoulders.
+            CreateBox("S10 Evac South Shoulder West", new Vector3(3.0f, 2.4f, 191.8f), new Vector3(2.4f, 4.8f, 0.4f), matConcrete, sector10, true);
+            CreateBox("S10 Evac South Shoulder East", new Vector3(17.0f, 2.4f, 191.8f), new Vector3(2.4f, 4.8f, 0.4f), matConcrete, sector10, true);
+
             // Panoramic armored glass window overlooking dawn mountain horizon at North End
-            CreateBox("Dawn Window Glass", new Vector3(10.0f, 2.4f, 206.0f), new Vector3(15.6f, 4.5f, 0.08f), matGlass, sector10, false);
+            CreateBox("Dawn Window Glass", new Vector3(10.0f, 2.4f, 206.0f), new Vector3(15.6f, 4.5f, 0.08f), matGlass, sector10, true);
             CreateBox("Dawn Window Frame Top", new Vector3(10.0f, 4.7f, 206.0f), new Vector3(16.0f, 0.3f, 0.25f), matDark, sector10, true);
             CreateBox("Dawn Window Frame Bottom", new Vector3(10.0f, 0.15f, 206.0f), new Vector3(16.0f, 0.3f, 0.25f), matDark, sector10, true);
 
@@ -1540,6 +1549,7 @@ namespace Hostfall.Editor
                 new Vector3(8.5f, 2.2f, 194.9f), 0.0035f, new Color(0.35f, 1.0f, 0.5f));
 
             CreateReflectionProbe("Reflection Probe - Sector 10 Super Core", new Vector3(10.0f, 6.0f, 160.0f), new Vector3(55.0f, 15.0f, 80.0f), sector10);
+            FacilityGeometryRepair.ApplyToLoadedScene();
         }
 
         private static void AdaptServerRoomBackWall(Scene scene)
@@ -1726,7 +1736,7 @@ namespace Hostfall.Editor
                 "Шлюз убежища инженера разблокирован",
                 "[E] Открыть шлюз убежища",
                 "[E] Закрыть шлюз убежища",
-                false, Vector3.up, 3.0f, 1.6f);
+                false, Vector3.up, 3.0f, 1.6f, id: "door.shelter.blast");
 
             // 2. Shelter Room Envelope (Z: -9.0 to -19.0, X: -5.0 to +5.0, H: 3.2m)
             CreateBox("Shelter Floor Slab", new Vector3(0, -0.1f, -14.0f), new Vector3(10.5f, 0.2f, 10.5f), floor, shelter, true);
@@ -1796,7 +1806,13 @@ namespace Hostfall.Editor
             CreateBox("Mouse", new Vector3(0.35f, 0.81f, -0.15f), new Vector3(0.08f, 0.025f, 0.12f), dark, deskGroup, false);
 
             CreateBox("USB Docking Station", new Vector3(-0.65f, 0.81f, 0.1f), new Vector3(0.22f, 0.04f, 0.18f), metal, deskGroup, true);
-            CreateBox("USB Stick HF-TOOLS", new Vector3(-0.65f, 0.84f, 0.08f), new Vector3(0.04f, 0.02f, 0.08f), amber, deskGroup, false);
+            var usbObj = new GameObject("Physical Media [item.usb.hf_tools]");
+            usbObj.transform.SetParent(deskGroup, false);
+            usbObj.transform.localPosition = new Vector3(-0.65f, 0.84f, 0.08f);
+            CreateBox("USB Stick Body", Vector3.zero, new Vector3(0.04f, 0.02f, 0.08f), amber, usbObj.transform, true);
+            CreateBox("USB Plug", new Vector3(0, 0, 0.045f), new Vector3(0.025f, 0.01f, 0.02f), metal, usbObj.transform, false);
+            var pmiUsb = usbObj.AddComponent<PhysicalMediaItem>();
+            pmiUsb.Configure("item.usb.hf_tools", "USB-накопитель [HF-TOOLS]", "[+] ПОЛУЧЕН USB-НАКОПИТЕЛЬ ИНЖЕНЕРА: HF-TOOLS");
 
             ScreenText(deskGroup, "NORTHLINE // SHELTER HOME-PC [OFFLINE]\nCHASSIS: TYPE-IV TELEPRESENCE [CONNECTED]\nETH0: ISOLATED LOOP  |  STATUS: RESTRICTED\nUSB REPO: /media/engineer/HF-TOOLS [READY]",
                 new Vector3(-0.55f, 1.54f, 0.17f), 0.0028f, new Color(1.0f, 0.78f, 0.35f));
@@ -1829,6 +1845,15 @@ namespace Hostfall.Editor
             CreateBox("Oscilloscope / Analyzer", new Vector3(-0.75f, 1.08f, 0.18f), new Vector3(0.42f, 0.35f, 0.32f), dark, benchGroup, true);
             CreateBox("Soldering Station", new Vector3(-0.32f, 0.96f, 0.2f), new Vector3(0.24f, 0.12f, 0.22f), metal, benchGroup, false);
             CreateBox("Wire Spool", new Vector3(-0.12f, 0.95f, 0.25f), new Vector3(0.14f, 0.1f, 0.14f), amber, benchGroup, false);
+
+            var keyObj = new GameObject("Physical Media [item.key.rbt_diag]");
+            keyObj.transform.SetParent(benchGroup, false);
+            keyObj.transform.localPosition = new Vector3(-0.05f, 0.92f, -0.1f);
+            CreateBox("Key Fob Body", Vector3.zero, new Vector3(0.06f, 0.02f, 0.10f), dark, keyObj.transform, true);
+            CreateBox("Key Crypto Chip", new Vector3(0, 0.012f, 0.01f), new Vector3(0.035f, 0.008f, 0.035f), amber, keyObj.transform, false);
+            CreateBox("Key Ring", new Vector3(0, 0, -0.055f), new Vector3(0.03f, 0.008f, 0.015f), metal, keyObj.transform, false);
+            var pmiKey = keyObj.AddComponent<PhysicalMediaItem>();
+            pmiKey.Configure("item.key.rbt_diag", "Ключ диагностики роботов [RBT-DIAG]", "[+] ПОЛУЧЕН КЛЮЧ ДИАГНОСТИКИ РОБОТОТЕХНИКИ: RBT-DIAG");
 
             BuildAmmoBoxPickup(benchGroup, new Vector3(0.45f, 0.9f, 0), 12, metal, dark, amber);
             BuildHealthKitPickup(benchGroup, new Vector3(0.95f, 0.9f, 0), 50f, metal, dark, green);
@@ -2199,7 +2224,7 @@ namespace Hostfall.Editor
                 },
                 "Шлюз цеха робототехники разблокирован · Сектор 06 доступен",
                 "[E] Авторизовать отправку через CARGO-WIN",
-                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Core01,
+                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Cargo01,
                 statusTxt: status, bodyTxt: body, led: ledObj.GetComponent<Renderer>(), scenId: "t06_cargo");
 
             BuildOverheadWorkstationLamp(station, new Vector3(0, 2.65f, 0.10f), new Vector3(80, 0, 0), new Color(0.2f, 0.75f, 1.0f), 4.5f, 4.2f, 65f);
@@ -2247,7 +2272,7 @@ namespace Hostfall.Editor
                 },
                 "Сборочная линия переведена в режим ожидания · Автоматический огонь отключён",
                 "[E] Перевести роботов в безопасный режим через RBT-01",
-                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Core01,
+                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Rbt01,
                 statusTxt: status, bodyTxt: body, led: ledObj.GetComponent<Renderer>(), scenId: "t04_robo");
 
             BuildOverheadWorkstationLamp(station, new Vector3(0, 2.65f, 0.10f), new Vector3(80, 0, 0), new Color(0.95f, 0.65f, 0.25f), 4.5f, 4.2f, 65f);
@@ -2421,6 +2446,15 @@ namespace Hostfall.Editor
             sentryObj.transform.SetParent(parent, false);
             sentryObj.transform.position = startPos;
 
+            var authored=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_HOSTFALL/Resources/Combat/MANTIS6.prefab");
+            if(authored!=null)
+            {
+                var model=(GameObject)PrefabUtility.InstantiatePrefab(authored);model.transform.SetParent(sentryObj.transform,false);
+                var collider=sentryObj.AddComponent<BoxCollider>();collider.center=new Vector3(0,.85f,0);collider.size=new Vector3(3.35f,1.7f,3.4f);
+                string id=startPos.x<0?"sentry-crawler-e06":"crawler-logistics-r35";
+                sentryObj.AddComponent<TrackedSentryController>().Configure(null,model.transform,model.transform,patrolA,patrolB,id);
+                sentryObj.transform.rotation=Quaternion.LookRotation(startPos.x<0?Vector3.right:Vector3.back);return;
+            }
             // Base Crawler Chassis
             CreateBox("Chassis Main Body", new Vector3(0, 0.45f, 0), new Vector3(1.6f, 0.5f, 1.8f), dark, sentryObj.transform, true);
 
@@ -2463,7 +2497,7 @@ namespace Hostfall.Editor
             boxCol.size = new Vector3(2.2f, 1.3f, 2.2f);
 
             var controller = sentryObj.AddComponent<TrackedSentryController>();
-            controller.Configure(sl, turret, muzzle, patrolA, patrolB, "sentry-crawler-e06");
+            controller.Configure(sl, turret, muzzle, patrolA, patrolB, startPos.x<0?"sentry-crawler-e06":"crawler-logistics-r35");
         }
 
         private static void BuildArmoredDoorLeaf(
@@ -2685,11 +2719,11 @@ namespace Hostfall.Editor
             BuildArmoredDoorLeaf(armoryLeaf, 2.65f, 3.1f, 0.2f, 1.8f, 1.28f, 0.45f, dark, glass, metal, amber, "Armory");
 
             var armoryDoor = armoryDoorGroup.gameObject.AddComponent<FacilityDoor>();
-            armoryDoor.Configure(armoryLeaf, DoorAccessCondition.AlwaysUnlocked,
-                "Оружейный отсек разблокирован",
+            armoryDoor.Configure(armoryLeaf, DoorAccessCondition.ManualUnlockOnly,
+                "Оружейный отсек заблокирован · требуется токен KEY-SEC02-ARMORY из DATA-01",
                 "[E] Открыть оружейный отсек",
                 "[E] Закрыть оружейный отсек",
-                false, Vector3.up, 3.2f, 1.8f);
+                false, Vector3.up, 3.2f, 1.8f, id: "door.sec02.armory");
 
             // Overhead Signboard over Armory Doorway
             CreateSignboard(armory, "ОРУЖЕЙНЫЙ ОТСЕК // ARMORY", "SEC-02", new Vector3(6.78f, 3.45f, 26.0f), 90, new Color(1.0f, 0.5f, 0.15f));
@@ -3207,7 +3241,7 @@ namespace Hostfall.Editor
                 },
                 "Служебный шлюз безопасности в операторскую разблокирован",
                 "[E] Авторизовать доступ через SEC-07",
-                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Core01,
+                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Sec07,
                 statusTxt: status, bodyTxt: body, led: ledObj.GetComponent<Renderer>(), scenId: "t05_sec");
 
             BuildOverheadWorkstationLamp(station, new Vector3(0, 2.65f, 0.10f), new Vector3(80, 0, 0), new Color(1.0f, 0.8f, 0.3f), 4.5f, 4.2f, 65f);
@@ -3259,7 +3293,7 @@ namespace Hostfall.Editor
                 },
                 "Хранилище памяти разблокировано · Сняты замки глубокого нейроархива",
                 "[E] Войти в сеанс через NEURO-MAC",
-                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Ws07,
+                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Neuro01,
                 statusTxt: status, bodyTxt: body, led: ledObj.GetComponent<Renderer>(), scenId: "t06_neuro");
 
             BuildOverheadWorkstationLamp(station, new Vector3(0, 2.45f, 0.10f), new Vector3(80, 0, 0), new Color(0.35f, 0.85f, 1.0f), 4.2f, 3.8f, 65f);
@@ -3293,7 +3327,7 @@ namespace Hostfall.Editor
             var col = station.AddComponent<BoxCollider>();
             col.center = new Vector3(0, 0.9f, 0);
             col.size = new Vector3(1.4f, 1.4f, 1.2f);
-            col.isTrigger = true;
+            col.isTrigger = false;
 
             var pickup = station.AddComponent<TitanbreakerPickup>();
             pickup.Configure("[E] ВЗЯТЬ ТЯЖЁЛЫЙ ИНДУКТОР W10 TITANBREAKER",
@@ -3480,7 +3514,7 @@ namespace Hostfall.Editor
                 },
                 "Кворум подтверждён · Шлюз в Машинный амфитеатр ядра разблокирован",
                 "[E] Подтвердить кворум через CLOUD-09",
-                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Core01,
+                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Cloud09,
                 statusTxt: status, bodyTxt: body, led: ledObj.GetComponent<Renderer>(), scenId: "t10_cloud");
 
             BuildOverheadWorkstationLamp(station, new Vector3(0, 2.65f, 0.10f), new Vector3(80, 0, 0), new Color(0.35f, 0.85f, 1.0f), 4.5f, 4.2f, 65f);
@@ -3528,7 +3562,7 @@ namespace Hostfall.Editor
                 },
                 "Автономия SUPER аннулирована · Протокол эвакуации активирован",
                 "[E] Аннулировать автономию SUPER через мастер-терминал",
-                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Core01,
+                screenObj.GetComponent<Renderer>(), screen, LoadMat("Indicator Green"), DeviceId.Super10,
                 statusTxt: status, bodyTxt: body, led: ledObj.GetComponent<Renderer>(), scenId: "t12_super");
 
             BuildOverheadWorkstationLamp(station, new Vector3(0, 2.75f, 0.10f), new Vector3(80, 0, 0), new Color(1.0f, 0.85f, 0.3f), 4.5f, 4.2f, 65f);

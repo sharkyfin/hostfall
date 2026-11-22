@@ -8,4 +8,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_HOSTFALL/Content/Scenes/NorthlineFacility.unity
     guid: 5ab6d04b25f1587eabf587246cc928af
-  m_configObjects: {}
+  - enabled: 1
+    path: Assets/_HOSTFALL/Content/Scenes/Hostfall2Facility.unity
+    guid: 1cd5075b9e0c44245a47157f8b717de3
+  m_configObjects:
+    com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}

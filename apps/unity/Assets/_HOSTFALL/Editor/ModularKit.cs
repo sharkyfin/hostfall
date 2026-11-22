@@ -59,20 +59,7 @@ namespace Hostfall.Editor
                 }
                 else if (root.name.Contains("Stairs"))
                 {
-                    // Tilted ramp collider so CharacterController can walk up smoothly
-                    float H = bounds.size.y;
-                    float D = bounds.size.z;
-                    float alpha = Mathf.Atan2(H, D) * Mathf.Rad2Deg;
-                    float slopeLen = Mathf.Sqrt(H * H + D * D);
-
-                    var rampObj = new GameObject("RampCollider");
-                    rampObj.transform.SetParent(root.transform, false);
-                    rampObj.transform.localPosition = new Vector3(0, H / 2, 0);
-                    rampObj.transform.localRotation = Quaternion.Euler(-alpha, 0, 0);
-
-                    var rampCol = rampObj.AddComponent<BoxCollider>();
-                    rampCol.center = Vector3.zero;
-                    rampCol.size = new Vector3(bounds.size.x, 0.15f, slopeLen);
+                    StairWalkSurface.Configure(root,bounds.size);
                 }
                 else if (root.name.Contains("Crate") || root.name == "Prop_Computer" || root.name.StartsWith("Wall") ||
                          root.name.StartsWith("Column") || root.name.Contains("Rails") || root.name.Contains("Barrel") ||
@@ -144,8 +131,11 @@ namespace Hostfall.Editor
         {
             var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(Output+"/"+name+".prefab");
             var go=(GameObject)PrefabUtility.InstantiatePrefab(prefab); go.transform.SetParent(parent,false); go.transform.localPosition=position; go.transform.localRotation=Quaternion.Euler(0,yaw,0);
-            Vector3 size=sizes[name]; go.transform.localScale=new Vector3(size.x>.001f?target.x/size.x:1,size.y>.001f?target.y/size.y:1,size.z>.001f?target.z/size.z:1);
-            if(solid && !name.Contains("Door_Frame") && !name.Contains("Frame") && go.GetComponent<Collider>()==null)
+            Vector3 size=sizes[name];
+            if(name.StartsWith("WallAstra") && Mathf.Abs(Mathf.Sin(yaw*Mathf.Deg2Rad))>.99f)
+            { target=new Vector3(target.z,target.y,target.x);go.name+=" / aligned"; }
+            go.transform.localScale=new Vector3(size.x>.001f?target.x/size.x:1,size.y>.001f?target.y/size.y:1,size.z>.001f?target.z/size.z:1);
+            if(solid && !name.Contains("Door_Frame") && !name.Contains("Frame") && !name.Contains("Stairs") && go.GetComponent<Collider>()==null && go.GetComponentInChildren<Collider>()==null)
             {
                 var shape=go.AddComponent<BoxCollider>(); shape.center=new Vector3(0,size.y/2,0); shape.size=size;
             }

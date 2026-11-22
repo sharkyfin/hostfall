@@ -24,6 +24,12 @@ namespace Hostfall.Simulation
         public int routeVersion;
         public RoutineData[] routines;
         public ActionStateData actions;
+        public ExplorationData exploration;
+        public RobotCombatData[] combat;
+        public WeaponWorldData weapons;
+        public ScenarioPlaybackData[] screenSessions;
+        public string[] disabledWorklights;
+        public Computers.ComputerCampaignData computerCampaign;
     }
     [Serializable] public sealed class QuestHintData { public string id; public int level; }
     [Serializable] public sealed class FieldProgressData

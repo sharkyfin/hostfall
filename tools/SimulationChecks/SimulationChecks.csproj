@@ -7,8 +7,27 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="../../apps/unity/Assets/_HOSTFALL/Simulation/*.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Simulation/Computers/*.cs" />
     <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/SimulationTests.cs" />
     <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/ActionRouteTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/ComputerCampaignTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/ComputerGameTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/NetworkDefenseTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/CircuitTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/SignalTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/MinefieldTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/DetectiveTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/ContainmentTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/BufferRecallTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/FragmentDockTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/QuorumDispatchTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/IntegrityAuditTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/RecoveryProtocolTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/CrawlerAttackTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/AttackPermitTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/CoreAvatarBattleTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/FacilityMinibossTests.cs" />
+    <Compile Include="../../apps/unity/Assets/_HOSTFALL/Tests/EditMode/RobotCombatTests.cs" />
     <Reference Include="nunit.framework">
       <HintPath>$(UnityResourcesDir)/PackageManager/BuiltInPackages/com.unity.ext.nunit/net472/unity-custom/nunit.framework.dll</HintPath>
     </Reference>

@@ -35,7 +35,7 @@ namespace Hostfall.Tests
             Object.Destroy(wall); yield return null;
             Pose(robot,new Vector3(0,0,2.2f)); PlayerAt(new Vector3(0,0,2.85f)); Physics.SyncTransforms(); robot.Tick(.02f);
             Assert.That(root.Simulation.WatcherContacts,Is.EqualTo(contacts+1));
-            Assert.That(Object.FindAnyObjectByType<PlayerMotor>().transform.position.z,Is.LessThan(0));
+            Assert.That(Object.FindAnyObjectByType<PlayerMotor>().transform.position.z,Is.GreaterThan(2),"A hit must not teleport the player out of combat");
             PlayerAt(new Vector3(0,0,2.85f)); Physics.SyncTransforms(); robot.Tick(.02f);
             Assert.That(root.Simulation.WatcherContacts,Is.EqualTo(contacts+1),"Repeated contact must respect cooldown");
             Assert.That(robot.AnimationState,Is.EqualTo("Attack"));
@@ -128,7 +128,7 @@ namespace Hostfall.Tests
 
             // Sustained gaze enters full alert
             for(int i=0;i<4;i++) { Physics.SyncTransforms(); robot.Tick(.1f); }
-            Assert.That(robot.State.Mode,Is.EqualTo(WatcherMode.Alert),"Sustained line of sight alerts the robot");
+            Assert.That(robot.State.Mode,Is.EqualTo(WatcherMode.Alert).Or.EqualTo(WatcherMode.AttackWindup),"Sustained sight leads to alert or the closer attack windup");
             Assert.That(robot.LastKnownPosition.z,Is.EqualTo(4.3f).Within(.1f));
 
             var wall=GameObject.CreatePrimitive(PrimitiveType.Cube); wall.name="Search test wall";
@@ -166,21 +166,21 @@ namespace Hostfall.Tests
             controls.SetMode(ControlMode.Paused); LogAssert.NoUnexpectedReceived();
         }
 
-        [UnityTest] public IEnumerator ArcShotgunDestroysRobotsInTwoShots()
+        [UnityTest] public IEnumerator RobotArmourNeedsSustainedFireAndDeathIsFinal()
         {
             yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
             var robot = Enemy("watcher-r17");
-            Assert.That(robot.Health, Is.EqualTo(100f));
+            Assert.That(robot.Health, Is.EqualTo(260f));
             Assert.That(robot.IsDestroyed, Is.False);
 
             // First shot deals 55 damage
             robot.TakeDamage(55f);
-            Assert.That(robot.Health, Is.EqualTo(45f));
+            Assert.That(robot.Health, Is.EqualTo(205f));
             Assert.That(robot.IsDestroyed, Is.False);
             Assert.That(robot.State.Mode, Is.EqualTo(WatcherMode.Alert), "First shot alerts the damaged robot");
 
-            // Second shot deals 55 damage -> total 110 dmg -> destroys 100 HP robot!
-            robot.TakeDamage(55f);
+            // Five body hits, rather than the former two-shot kill.
+            for(int i=0;i<4;i++)robot.TakeDamage(55f);
             Assert.That(robot.Health, Is.EqualTo(0f));
             Assert.That(robot.IsDestroyed, Is.True, "Second shot destroys the robot completely");
             Assert.That(robot.State.Mode, Is.EqualTo(WatcherMode.Offline));
@@ -200,7 +200,7 @@ namespace Hostfall.Tests
             yield return SceneManager.LoadSceneAsync("NorthlineFacility"); yield return null;
             var robot = Enemy("watcher-r17");
             Assert.That(robot.IsStunned, Is.False);
-            Assert.That(robot.Health, Is.EqualTo(100f));
+            Assert.That(robot.Health, Is.EqualTo(260f));
 
             // Stun robot with EMP
             robot.ApplyEmpStun(7f);
@@ -212,7 +212,7 @@ namespace Hostfall.Tests
             if (sentry != null)
             {
                 Assert.That(sentry.IsStunned, Is.False);
-                Assert.That(sentry.Health, Is.EqualTo(160f));
+                Assert.That(sentry.Health, Is.EqualTo(780f));
                 Assert.That(sentry.IsDestroyed, Is.False);
 
                 // Apply EMP Stun to Sentry
@@ -221,11 +221,14 @@ namespace Hostfall.Tests
 
                 // Apply damage
                 sentry.TakeDamage(60f);
-                Assert.That(sentry.Health, Is.EqualTo(100f));
+                Assert.That(sentry.Health, Is.EqualTo(772.8f).Within(.01f));
                 Assert.That(sentry.IsDestroyed, Is.False);
 
                 // Fatal damage
-                sentry.TakeDamage(100f);
+                var combat=sentry.GetComponent<RobotCombatController>();
+                combat.Hit(140,RobotHitRegion.LeftCoolant,sentry.transform.position);
+                combat.Hit(140,RobotHitRegion.RightCoolant,sentry.transform.position);
+                combat.Hit(1000,RobotHitRegion.Core,sentry.transform.position);
                 Assert.That(sentry.Health, Is.EqualTo(0f));
                 Assert.That(sentry.IsDestroyed, Is.True);
             }
@@ -265,7 +268,7 @@ namespace Hostfall.Tests
             // Now pickup ammo box (+12 ammo, capped at max 18 reserve)
             box.Interact();
             Assert.That(box.IsPickedUp, Is.True);
-            Assert.That(weapon.ReserveAmmo, Is.EqualTo(18));
+            Assert.That(weapon.ReserveAmmo, Is.EqualTo(29));
             LogAssert.NoUnexpectedReceived();
         }
 
@@ -343,17 +346,21 @@ namespace Hostfall.Tests
             Assert.That(weapon.CurrentAmmo, Is.EqualTo(15));
             Assert.That(weapon.ReserveAmmo, Is.EqualTo(45));
 
+            // Switching has a short readiness interval.
+            yield return new WaitForSeconds(.35f);
             // Fire 1 pulse shot
             Assert.That(weapon.TryFire(), Is.True);
             Assert.That(weapon.CurrentAmmo, Is.EqualTo(14));
 
-            // Switch back to ARC-12
+            // Numeric slots cannot summon discarded guns; swapping means picking up the floor item.
             weapon.SwitchWeapon(ActiveWeaponType.Arc12Shotgun);
+            Assert.That(weapon.ActiveWeapon,Is.EqualTo(ActiveWeaponType.CirrusPulseSidearm));
+            Object.FindObjectsByType<DroppedWeapon>(FindObjectsSortMode.None).Single(d=>d.Kind==ActiveWeaponType.Arc12Shotgun).Interact();
             Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.Arc12Shotgun));
             Assert.That(weapon.CurrentAmmo, Is.EqualTo(6));
 
             // Switch back to CIRRUS: verifies magazine preservation
-            weapon.SwitchWeapon(ActiveWeaponType.CirrusPulseSidearm);
+            Object.FindObjectsByType<DroppedWeapon>(FindObjectsSortMode.None).Single(d=>d.Kind==ActiveWeaponType.CirrusPulseSidearm).Interact();
             Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.CirrusPulseSidearm));
             Assert.That(weapon.CurrentAmmo, Is.EqualTo(14));
 
@@ -456,22 +463,27 @@ namespace Hostfall.Tests
             var weapon = player.GetComponent<PlayerWeapon>();
             Assert.That(weapon, Is.Not.Null);
 
-            weapon.UnlockTitanbreaker();
+            weapon.Equip();weapon.UnlockTitanbreaker();
             Assert.That(weapon.HasTitanbreaker, Is.True);
             Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.TitanbreakerHeavyInductor));
             Assert.That(weapon.CurrentAmmo, Is.EqualTo(3));
             Assert.That(weapon.ReserveAmmo, Is.EqualTo(9));
 
+            yield return new WaitForSeconds(.35f);
             // Fire 1 heavy inductor shot
-            Assert.That(weapon.TryFire(), Is.True);
+            Assert.That(weapon.BeginCharge(), Is.True);
+            yield return new WaitForSeconds(.85f);
+            Assert.That(weapon.ReleaseCharge(), Is.True);
             Assert.That(weapon.CurrentAmmo, Is.EqualTo(2));
 
             // Switch to ARC-12 and verify
             weapon.SwitchWeapon(ActiveWeaponType.Arc12Shotgun);
+            Assert.That(weapon.ActiveWeapon,Is.EqualTo(ActiveWeaponType.TitanbreakerHeavyInductor));
+            Object.FindObjectsByType<DroppedWeapon>(FindObjectsSortMode.None).Single(d=>d.Kind==ActiveWeaponType.Arc12Shotgun).Interact();
             Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.Arc12Shotgun));
 
             // Switch back to TITANBREAKER and verify state preserved
-            weapon.SwitchWeapon(ActiveWeaponType.TitanbreakerHeavyInductor);
+            Object.FindObjectsByType<DroppedWeapon>(FindObjectsSortMode.None).Single(d=>d.Kind==ActiveWeaponType.TitanbreakerHeavyInductor).Interact();
             Assert.That(weapon.ActiveWeapon, Is.EqualTo(ActiveWeaponType.TitanbreakerHeavyInductor));
             Assert.That(weapon.CurrentAmmo, Is.EqualTo(2));
 

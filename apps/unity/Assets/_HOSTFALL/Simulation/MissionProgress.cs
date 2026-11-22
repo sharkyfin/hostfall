@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Hostfall.Simulation
 {
-    public enum ObjectiveCondition { InspectProcesses, IsolateCacheSource, TerminalSequence }
+    public enum ObjectiveCondition { InspectProcesses, IsolateCacheSource, TerminalSequence, ComputerTask }
     public readonly struct ObjectiveDefinition
     {
         public ObjectiveCondition Condition { get; }
@@ -29,6 +29,8 @@ namespace Hostfall.Simulation
             new ObjectiveDefinition(ObjectiveCondition.InspectProcesses, DeviceId.Ws07, "Выясните, что управляет наблюдателем."),
             new ObjectiveDefinition(ObjectiveCondition.IsolateCacheSource, DeviceId.Ws07, "Отключите источник управляющих заданий."),
             new ObjectiveDefinition(ObjectiveCondition.InspectProcesses, DeviceId.Core01, "Проверьте оставшийся контур управления в серверной."));
+        public static MissionDefinition ComputerWorld => new("Контур восстановления доступен.",
+            new ObjectiveDefinition(ObjectiveCondition.ComputerTask, DeviceId.Home01, "Исследуйте домашний терминал."));
         public static MissionDefinition ActionRoute => new("Данные участка получены. Маршрут открыт.",
             new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Ws07,"Сектор 00 · Операторская // Терминал WS-07"),
             new ObjectiveDefinition(ObjectiveCondition.TerminalSequence,DeviceId.Edge01,"Сектор 01 · Служебный проход // Терминал EDGE-01"),
@@ -47,6 +49,7 @@ namespace Hostfall.Simulation
         public int CompletedObjectives { get; private set; }
         public bool IsComplete => CompletedObjectives == definition.Objectives.Count;
         public bool UsesTerminalSequences => definition.Objectives[0].Condition==ObjectiveCondition.TerminalSequence;
+        public bool UsesInteractiveComputers => definition.Objectives[0].Condition==ObjectiveCondition.ComputerTask;
         public string Description => IsComplete ? definition.CompletionMessage : definition.Objectives[CompletedObjectives].Description;
         public MissionProgress(MissionDefinition definition) { this.definition = definition ?? throw new ArgumentNullException(nameof(definition)); }
         internal void Restore(int completed)

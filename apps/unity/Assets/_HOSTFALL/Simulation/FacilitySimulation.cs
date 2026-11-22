@@ -22,14 +22,24 @@ namespace Hostfall.Simulation
         public MissionProgress Mission { get; }
         public TerminalDirector Terminals { get; }
         public ActionState Actions { get; }=new();
+        public ExplorationState Exploration { get; }=new();
+        public CombatRoster Combat { get; }=new();
+        public WeaponWorldState Weapons { get; }=new();
+        public ScenarioSessions Screens {get;}=new();
+        public ServiceSwitchState Switches {get;}=new();
+        public Computers.ComputerCampaign ComputerCampaign { get; private set; }
+        public bool InteractiveComputers => ComputerCampaign != null;
         public bool AutomatedRoute=>Mission.UsesTerminalSequences;
-        public bool PulseUnlocked=>Terminals.IsComplete(DeviceId.Ws07);
+        public bool PulseUnlocked=>InteractiveComputers || Terminals.IsComplete(DeviceId.Ws07);
         public VirtualComputer this[DeviceId id] => computers[id];
         public bool SourceIsolated => !autostartEnabled && !this[DeviceId.Ws07].HasProcess(CacheService);
-        public bool ServerAccess => AutomatedRoute?Terminals.IsComplete(DeviceId.Edge01):SourceIsolated;
-        public string Objective => Mission.Description;
+        public bool ServerAccess => InteractiveComputers ? ComputerCampaign.Actions.Any(a=>a.kind==Computers.WorldActionKind.UnlockDoor&&a.target=="door.corridor.server") : AutomatedRoute?Terminals.IsComplete(DeviceId.Edge01):SourceIsolated;
+        public string Objective => ComputerCampaign?.Objective ?? Mission.Description;
         public FacilitySimulation(MissionDefinition definition = null)
         {
+            Exploration.Changed+=()=>StateChanged?.Invoke();
+            Combat.Changed+=()=>StateChanged?.Invoke();
+            Weapons.Changed+=()=>StateChanged?.Invoke();
             Mission = new MissionProgress(definition ?? MissionDefinition.ActionRoute);
             Terminals=new TerminalDirector(this);
             Add(DeviceId.Ws07, "10.17.0.7", "WS-07 / INC-0317\nНаблюдатель перекрыл эвакуационный проход и повторяет маршрут после отмены задания. С рабочего места продолжает идти обмен с сетевым шлюзом.\nНужно прекратить передачу управляющих заданий и исключить её самопроизвольное возобновление. Журналы сохранить.\n");
@@ -43,13 +53,19 @@ namespace Hostfall.Simulation
             this[DeviceId.Edge01].WriteFile("/etc/network/interfaces", "eth0 10.17.0.1/24\ncontrol -> ws07, core01\n");
             this[DeviceId.Core01].Start(new VirtualProcess(666, "root", "super-node --leader --replicate"));
             this[DeviceId.Core01].WriteFile("/var/log/super.log", "03:17:00 выбран лидер: core01\n03:17:30 continuity: потеря WS-07 не нарушает управляющий контур\n");
+            if(Mission.UsesInteractiveComputers) BindCampaign(new Computers.ComputerCampaign());
+        }
+        private void BindCampaign(Computers.ComputerCampaign campaign)
+        {
+            ComputerCampaign=campaign;
+            ComputerCampaign.Changed+=NotifyTerminalChanged;
         }
         public FacilityStateData Capture() => new()
         {
             autostartEnabled = autostartEnabled, serviceStopped = serviceStopped, nextPid = nextPid,
             completedObjectives = Mission.CompletedObjectives, watcherContacts = WatcherContacts,
             computers = computers.Values.OrderBy(c => (uint)c.Id).Select(c => c.Capture()).ToArray()
-            ,routeVersion=AutomatedRoute?2:1,routines=Terminals.Capture(),actions=Actions.Capture()
+            ,routeVersion=InteractiveComputers?3:AutomatedRoute?2:1,routines=Terminals.Capture(),actions=Actions.Capture(),exploration=Exploration.Capture(),combat=Combat.Capture(),weapons=Weapons.Capture(),screenSessions=Screens.Capture(),disabledWorklights=Switches.Capture(),computerCampaign=ComputerCampaign?.Capture()
         };
         public static FacilitySimulation Restore(FacilityStateData data, MissionDefinition definition = null)
         {
@@ -63,21 +79,23 @@ namespace Hostfall.Simulation
             var workstation = data.computers.First(c => c.id == DeviceId.Ws07);
             SaveValidation.Require(workstation.processes.Where(p => p.command == CacheService).All(p => p.pid < data.nextPid), "Invalid next service PID");
             bool isolated = !data.autostartEnabled && workstation.processes.All(p => p.command != CacheService);
-            SaveValidation.Require(data.completedObjectives < 2 || isolated, "Mission conflicts with source state");
+            SaveValidation.Require(data.routeVersion==3 ? data.completedObjectives==0 : data.completedObjectives < 2 || isolated, "Mission conflicts with source state");
             SaveValidation.Require(!data.serviceStopped || workstation.processes.All(p => p.command != CacheService), "Stopped service is still running");
-            var model = new FacilitySimulation(definition??(data.routeVersion==2?MissionDefinition.ActionRoute:MissionDefinition.NightShift));
+            var model = new FacilitySimulation(definition??(data.routeVersion==3?MissionDefinition.ComputerWorld:data.routeVersion==2?(data.completedObjectives>3?MissionDefinition.FacilityCampaign:MissionDefinition.ActionRoute):MissionDefinition.NightShift));
+            SaveValidation.Require((data.routeVersion==3)==model.Mission.UsesInteractiveComputers,"Saved route does not match mission");
             foreach (var computer in data.computers) model[computer.id].Restore(computer);
             RefreshAuthoredTickets(model);
             model.autostartEnabled = data.autostartEnabled; model.serviceStopped = data.serviceStopped;
             model.nextPid = data.nextPid; model.WatcherContacts = data.watcherContacts;
-            SaveValidation.Require(data.routeVersion>=0&&data.routeVersion<=2,"Unknown route version");
-            if(data.routeVersion==2)
+            SaveValidation.Require(data.routeVersion>=0&&data.routeVersion<=3,"Unknown route version");
+            if(data.routeVersion==3) model.BindCampaign(Computers.ComputerCampaign.Restore(data.computerCampaign));
+            else if(data.routeVersion==2)
             {
                 model.Terminals.Restore(data.routines);
                 SaveValidation.Require(!model.Terminals.IsComplete(DeviceId.Ws07)||isolated,"Routine conflicts with source state");
                 int completed=model.Terminals.Capture().Count(r=>r.completed);
-                SaveValidation.Require(completed==data.completedObjectives,"Routine conflicts with mission progress");
-                model.Mission.Restore(completed);
+                SaveValidation.Require(completed==Math.Min(3,data.completedObjectives),"Routine conflicts with mission progress");
+                model.Mission.Restore(data.completedObjectives);
             }
             else if(model.AutomatedRoute)
             {
@@ -86,6 +104,9 @@ namespace Hostfall.Simulation
             }
             else model.Mission.Restore(data.completedObjectives);
             model.Actions.Restore(data.actions);
+            model.Exploration.Restore(data.exploration);
+            model.Screens.Restore(data.screenSessions);model.Switches.Restore(data.disabledWorklights);
+            model.Combat.Restore(data.combat);model.Weapons.Restore(data.weapons);
             return model;
         }
         internal void CompleteRoutine(DeviceId id)

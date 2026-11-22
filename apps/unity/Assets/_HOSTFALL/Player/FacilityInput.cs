@@ -16,6 +16,7 @@ namespace Hostfall.Player
         public InputAction Jump { get; private set; }
         public InputAction Dash { get; private set; }
         public InputAction Pulse { get; private set; }
+        public InputAction Melee { get; private set; }
         public InputAction Fire { get; private set; }
         public InputAction SwitchCamera { get; private set; }
         public InputAction Interact { get; private set; }
@@ -37,11 +38,15 @@ namespace Hostfall.Player
             Jump = gameplay.AddAction("Jump", InputActionType.Button, "<Keyboard>/space");
             Dash = gameplay.AddAction("Dash", InputActionType.Button, "<Keyboard>/q");
             Pulse = gameplay.AddAction("Pulse", InputActionType.Button, "<Keyboard>/f");
+            Melee = gameplay.AddAction("Melee", InputActionType.Button, "<Keyboard>/c");
+            Melee.AddBinding("<Gamepad>/rightStickPress");
             Fire = gameplay.AddAction("Fire", InputActionType.Button, "<Mouse>/leftButton");
             Fire.AddBinding("<Gamepad>/rightTrigger");
             SwitchCamera = gameplay.AddAction("Camera", InputActionType.Button, "<Keyboard>/v");
             Interact = gameplay.AddAction("Interact", InputActionType.Button, "<Keyboard>/e");
             Escape = system.AddAction("Escape", InputActionType.Button, "<Keyboard>/escape");
+            Escape.AddBinding("<Keyboard>/p");
+            Escape.AddBinding("<Keyboard>/tab");
             Journal = system.AddAction("Journal", InputActionType.Button, "<Keyboard>/j");
             Archive = system.AddAction("Archive", InputActionType.Button, "<Keyboard>/k");
             Save = system.AddAction("Save", InputActionType.Button, "<Keyboard>/f5");

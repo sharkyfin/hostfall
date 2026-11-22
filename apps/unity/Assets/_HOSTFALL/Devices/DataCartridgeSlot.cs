@@ -25,10 +25,10 @@ namespace Hostfall.Devices
             get
             {
                 if (DataCartridgeState.IsInserted)
-                    return "[КАРТРИДЖ NL-CART-044 УСТАНОВЛЕН В ПРИВОД]";
+                    return "Картридж установлен · запустите DATA-01";
                 if (DataCartridgeState.HasCartridge)
                     return "[E] Вставить картридж " + requiredId + " в считыватель";
-                return "[!] ТРЕБУЕТСЯ КАРТРИДЖ " + requiredId + " [ХРАНИЛИЩЕ НА МЕЗОНИНЕ]";
+                return "Нужен картридж " + requiredId + " с верхнего поста наблюдения";
             }
         }
 
@@ -100,7 +100,7 @@ namespace Hostfall.Devices
             {
                 if (ui != null)
                 {
-                    ui.ShowActionNotice("[!] ОШИБКА: Извлеките картридж NL-CART-044 из терминала мезонина");
+                    ui.ShowActionNotice("Картридж NL-CART-044 лежит на столе верхнего поста наблюдения.");
                 }
                 return;
             }
@@ -121,7 +121,7 @@ namespace Hostfall.Devices
 
             if (ui != null)
             {
-                ui.ShowActionNotice("[OK] КАРТРИДЖ NL-CART-044 ВАЛИДИРОВАН // СИСТЕМА ГОТОВА К АВТОРИЗАЦИИ");
+                ui.ShowActionNotice("Картридж установлен. Запустите DATA-01.");
             }
         }
 

@@ -23,11 +23,11 @@ namespace Hostfall.World
         private const float WindupDuration = 0.75f;
         private const float CooldownDuration = 2.2f;
 
-        private Vector3 railA, railB;
+        [SerializeField] private Vector3 railA, railB;
         private int railDirection = 1;
-        private Transform turretHead;
-        private Transform muzzleTransform;
-        private Light targetingLaser;
+        [SerializeField] private Transform turretHead;
+        [SerializeField] private Transform muzzleTransform;
+        [SerializeField] private Light targetingLaser;
         private AudioSource audioSource;
         private static AudioClip clipCharge, clipFire, clipEmpStun;
         private static bool audioGenerated;

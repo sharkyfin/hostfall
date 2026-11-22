@@ -45,7 +45,7 @@ namespace Hostfall.Tests
                 Assert.That(door.Capture().offset,Is.EqualTo(1.1f)); Assert.That(robot.Capture().direction,Is.EqualTo(-1));
                 var terminal = Object.FindObjectsByType<ComputerTerminal>().Single(t=>t.Id==DeviceId.Ws07);
                 terminal.GetComponent<ComputerScreen>().Refresh(world,DeviceId.Ws07);
-                Assert.That(terminal.GetComponent<ComputerScreen>().DisplayedText,Is.EqualTo(TerminalDisplay.Read(world,DeviceId.Ws07).Tail(52,12)));
+                Assert.That(terminal.GetComponent<ComputerScreen>().DisplayedText,Is.EqualTo(TerminalDisplay.Read(world,DeviceId.Ws07).Tail(62,15)));
                 Assert.That(TerminalDisplay.Read(world,DeviceId.Ws07).Transcript,Does.Contain("systemctl stop cache-sync"));
                 var visual = Object.FindAnyObjectByType<OperatorVisual>(FindObjectsInactive.Include); visual.SetView(true,true);
                 var shoulders = visual.GetComponentsInChildren<Transform>(true).Where(t=>t.name=="Shoulder").ToArray(); Assert.That(shoulders.Length,Is.EqualTo(2));

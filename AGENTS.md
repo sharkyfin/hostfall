@@ -1,4 +1,34 @@
+# Active user direction — 2026-11-20
+
+Read `docs/hostfall/HORROR_CAMPAIGN_2026-11-20.md` for the current campaign direction.
+Target a twenty-minute physical techno-horror route. The approved computer route retains
+VENTFLOW and two investigations, «Пустая камера» at CORE-01 and «Второй голос» at
+NEURO-01. Other field stations show local dossiers and selected typed .svc utilities
+with a local «Знания» tab. Home keeps its shell and a mandatory dossier signature
+before transit. Historical save readers remain supported. See ADR 0028.
+
+## Previous direction — 2026-11-17 / ADR0016
+
+The new user MASTER_REQUEST explicitly supersedes older automatic-terminal / global
+knowledge / finale rules below. Read `docs/hostfall/MASTER_REQUEST_2026-11-17.md`,
+`docs/hostfall/ITERATION_STATUS.md` and ADR0016. Home has the only manual safe virtual
+shell and local Knowledge. External PCs have player-controlled graphical apps/games;
+never restore automatic solution playback to the active 2.0 route. Implement four
+sequential acceptance gates; iterations 1 and 2 accepted; iteration 3 in progress. Preserve checkpoints,
+legacy data and explicit v3/v2 separation. Everything below remains applicable where
+it does not conflict with the newer user request.
+
 # HOSTFALL
+
+Подача комплекса 2.0 (2026-11-20). Домашний терминал принимает ввод сразу
+после наведения камеры. Пока открыта оболочка, фокус возвращается на строку
+ввода. Уход с компьютера остаётся на Esc. На рабочих столах терминалов нет
+кнопки «Отойти · Esc», декоративных заголовков и хлебных крошек помещения.
+Названия мест показывают карта и радар. Навигационные надписи в мире короткие
+и закреплены на стенах или на непрозрачных табличках. Аппаратные дисплеи
+вписаны в оборудование и не заходят в дверные проёмы. При редакторской съёмке
+надписи проходят тот же тест глубины, что и при игре. Световые акценты нужны
+для локального освещения и значимых состояний оборудования.
 
 **Активное направление 2026-11-08 — ADR 0007.** Пользователь отменил ручной ввод команд.
 Терминалы автоматически показывают доверенные сеансы; основа игры — перемещение,
@@ -98,3 +128,59 @@ ActionState владеет cooldown и дебаффами; FacilityActionControl
 и геометрические проверки. Сохранение включает шаг/typed/wait, фазу рывка и эффекты.
 Завершение терминала и награды идемпотентны. WATCHER автономен в новом маршруте.
 NightShift — внутренний legacy-контракт регрессий, активная миссия — ActionRoute.
+
+Геометрия и инструменты (2026-11-14): читать `docs/tooling/EDITOR_WORKBENCH.md`.
+Перед работой проверить реальные MCP instances и явно выбирать редактор; рабочая сцена
+и проверочная копия могут быть открыты одновременно. Проверять использование моделей/
+текстур по сцене, снимать несколько реальных ракурсов, а не судить только по иерархии.
+Сохранять авторскую сцену: адресный ремонт в копии, backup/hash перед переносом.
+Наклонный BoxCollider под неравномерным scale не совпадает со ступенями: применять
+StairWalkSurface (исходные Quaternius лестницы поднимаются к -Z). Проходы подтверждать
+CharacterController в обе стороны; скан нижнего этажа не выдавать за прохождение кампании.
+
+
+Оружие и анимация (2026-11-15, ADR 0012): одна переносимая пушка; подбор оставляет
+прежнюю модель в мире с её боезапасом/нагревом. Simulation.Weapons владеет предметами
+и собранными authored IDs; физические позы синхронизируются перед save. Не возвращать
+цифровые слоты, вызывающие брошенную пушку из воздуха. ARC — отдельные патроны,
+CIRRUS — нагрев, TITAN — удержание/отпускание заряда. Quaternius UAL1 CC0 клипы в
+Resources/Motion retargeted через OperatorMotion на реальное тело; CharacterController
+владеет перемещением. Источники/экспорт — Art/QuaterniusMotion/PROVENANCE.md.
+MapShape.Refresh обязан учитывать явное перемещение/resize; FacilityMapWorld сам
+планирует только moving shapes. Не возвращать пересчёт всей статической сцены.
+
+
+Броня и бюджет роботов (2026-11-15, ADR 0013): пластины подгоняются RobotArmorAuthor
+по Body-weighted поверхности отдельно для QuadShell/Trilobite; не возвращать общий
+actor-space offset или runtime BakeMesh. MANTIS объединяет только фиксированные части;
+52 008 индексов должны сохраниться, шесть групп обязаны быть непустыми. Навигация —
+общая round-robin очередь A*, максимум 96 проверок рёбер и мягкий бюджет 1.2 мс;
+мгновенные проверки движения/пола остаются. GPU Resident Drawer/occlusion в production
+отключены после нативной приёмки; не включать только ради меньшего счётчика draw calls.
+
+
+Физические станции и экранный бюджет (2026-11-15, ADR 0014): WorkstationSurface
+задаёт углы стекла/позу; UI Toolkit проецирует текст на стекло после плавного фокуса.
+Не возвращать отдельный fullscreen терминал. Simulation.Screens хранит расширенные
+доверенные сеансы/набор/ожидание/награду; первые три остаются у TerminalDirector.
+Fullscreen/UI — native; URP 3D — не более 2 073 600 пикселей. TestStorageDirectory
+действует и в normal-player; QA bundle ID отдельный. Перед native replay проверять
+изоляцию и хеши пользовательских сохранений. Старый отсутствующий weapon roster
+допустим; malformed текущий — нет. См. QA PHYSICAL_WORKSTATIONS_2026-11-15.
+
+
+Непрерывный экран и вступление (ADR 0015, 2026-11-17): NearbyTerminalDisplay использует
+один DOM/RenderTexture для подхода и работы. Native glass композитит ту же текстуру,
+не новую вёрстку. Общая память и idempotent reward остаются у Simulation. OpeningSequence
+только для новой кампании; загрузка не сбрасывает позу и не повторяет катсцену.
+Шлюз door.soc.corridor закрыт до WS-07, затем E; не замыкать зависимость от EDGE внутри
+того же коридора. Headless проверки запускаются с -noaudio при проблемах устройства,
+но production AudioManager не отключать; голос/картинка проверяются нативно отдельно.
+
+Актуальное уточнение 2026-11-19 (ADR 0023): на карте и радаре видны названия
+мест без номеров секторов. Герой перенёс сознание в Type-IV до пробуждения.
+«Знания» доступны рядом с домашним терминалом, сюжетные пути и ввод сохранены.
+Две адресные сцены захвата отпускают компьютер до физического удара.
+PAYLOAD запускает две волны с физическими воротами. В финале SUPER объясняет
+обман и герой видит катастрофу из эвакуационного зала. Сохранять доступ к
+старым слотам и проверять обе сборки в изолированных профилях.

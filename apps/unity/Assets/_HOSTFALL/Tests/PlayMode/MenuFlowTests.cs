@@ -22,10 +22,10 @@ namespace Hostfall.Tests
             for(int i=0;i<2000&&!world.Terminals.IsComplete(id);i++) world.Terminals.Tick(id,.1f);
             Assert.That(world.Terminals.IsComplete(id),Is.True);
         }
-        private static VisualElement View()=>Object.FindAnyObjectByType<UIDocument>().rootVisualElement;
+        private static VisualElement View()=>Object.FindAnyObjectByType<Hostfall.UI.FacilityUI>().GetComponent<UIDocument>().rootVisualElement;
         private static IEnumerator Click(Button button)
         {
-            Assert.That(button,Is.Not.Null); button.Focus();
+            Assert.That(button,Is.Not.Null); if(button.name=="intro-understood")Object.FindAnyObjectByType<FacilityUI>().Opening.Skip(); button.Focus();
             using(var submit=NavigationSubmitEvent.GetPooled()) button.SendEvent(submit);
             yield return null;
         }
@@ -41,7 +41,7 @@ namespace Hostfall.Tests
             Assert.That(root.Q("menu-main").Q<Button>("load-game"),Is.Null); Assert.That(root.Q("menu-main").Q<Button>("restart"),Is.Null);
             ui.OpenPage("load"); yield return null;
             Assert.That(root.Q<ScrollView>("menu-page-body").Query<Button>().ToList().Count,Is.EqualTo(5));
-            ui.ShowMainMenu(); ui.BeginSession(); yield return null;
+            ui.ShowMainMenu(); ui.BeginSession(); ui.Opening.Skip(); yield return null;
             Assert.That(controls.Mode,Is.EqualTo(ControlMode.Introduction));
             Assert.That(root.Q("introduction").Query<Label>().ToList().Any(l=>l.text.Contains("импульс")),Is.True);
             yield return Click(root.Q<Button>("intro-understood"));
@@ -108,6 +108,7 @@ namespace Hostfall.Tests
                 yield return Click(View().Q<Button>("start-new-game")); yield return null;
                 var composition=Object.FindAnyObjectByType<FacilityRoot>();
                 Assert.That(composition.Field.ProgrammingLanguage,Is.EqualTo("cpp"));
+                Object.FindAnyObjectByType<FacilityUI>().Opening.Skip();
                 Assert.That(Object.FindAnyObjectByType<ControlState>().Mode,Is.EqualTo(ControlMode.Introduction));
                 yield return Click(View().Q<Button>("intro-understood"));
                 composition.Field.Study("cpp.start"); FinishRoutine(composition.Simulation,DeviceId.Ws07);

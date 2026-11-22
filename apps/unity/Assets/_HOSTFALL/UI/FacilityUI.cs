@@ -1,15 +1,21 @@
 using System;
 using System.Linq;
 using Hostfall.Core;
+using Hostfall.CameraSystem;
+using Hostfall.Devices;
 using Hostfall.Field;
+using Hostfall.Mapping;
 using Hostfall.Player;
 using Hostfall.Persistence;
 using Hostfall.Simulation;
+using Hostfall.Simulation.Computers;
+using Hostfall.World;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Hostfall.UI
 {
+    [DefaultExecutionOrder(200)]
     [RequireComponent(typeof(UIDocument))]
     public sealed class FacilityUI : MonoBehaviour
     {
@@ -21,12 +27,12 @@ namespace Hostfall.UI
         private WorldSaveController persistence;
         private FieldSystemUI fieldUI;
         private FieldSession field;
-        private VisualElement terminal, pause, hud, menuMain, menuPage, front, introduction, facilityMap, mapSectorsContainer;
+        private VisualElement terminal, pause, hud, menuMain, menuPage, front, introduction, facilityMap;
         private GamePreferences preferences;
         public GamePreferences Preferences => preferences;
         public bool HasSession => entered || persistence.Loaded;
         private Label objective, prompt, host, inputPrompt, taskHeading, menuTitle, pageTitle, menuError;
-        private Label locationSector, locationRoom, mapPlayerStatus;
+        private Label locationRoom, mapPlayerStatus;
         private Button resume, restart, openMap, closeMap;
         private Label typedCommand, routineStatus;
         private DeviceId activeTerminal;
@@ -38,25 +44,88 @@ namespace Hostfall.UI
         private bool entered, confirmingNewGame;
         private PlayerMotor playerMotor;
         private bool isMapOpen;
+        private ControlMode mapReturnMode;
+        private float nextMapRefresh;private Label weaponStatus;private PlayerWeapon displayedWeapon;
+        private int shownAmmo=-1,shownReserve=-1,shownKind=-1,shownCharge=-1;private bool shownReload,shownHot,weaponWasVisible;
+        private FacilityMapWorld mapWorld;
+        private FacilityMapView mapView, radar;
+        public FacilityMapWorld MapWorld=>mapWorld;
+        public FacilityMapView MapPlan=>mapView;
+        public FacilityMapView Radar=>radar;
         private int terminalOpenedFrame = -1;
+        private PlayerCameraRig cameraRig;
+        private WorkstationSurface activeSurface;
+        private ScenarioPlayback scenarioPlayback;
+        private Action scenarioComplete;
+        private bool playbackPaused;
+        private float playbackSpeed=1;
+        private void FocusScreen(DeviceId id)
+        {
+            if(activeSurface!=null)activeSurface.SetNativeOverlay(false);
+            activeSurface=FindObjectsByType<WorkstationSurface>(FindObjectsSortMode.None).FirstOrDefault(s=>s.Device==id&&s.Valid);
+            cameraRig??=FindAnyObjectByType<PlayerCameraRig>();
+            terminal.AddToClassList("terminal-world");
+            terminal.EnableInClassList("terminal-mac",activeSurface!=null&&activeSurface.Os==TerminalOsFamily.MacOsZsh);
+            terminal.EnableInClassList("terminal-windows",activeSurface!=null&&activeSurface.Os==TerminalOsFamily.WindowsPowerShell);
+            if(activeSurface!=null){cameraRig.Focus(activeSurface);terminal.style.visibility=Visibility.Visible;}
+            else terminal.style.visibility=Visibility.Hidden;
+        }
+        public NearbyTerminalDisplay PhysicalDisplay {get;private set;}
+        public OpeningSequence Opening {get;private set;}
+        public VisualElement TerminalView=>terminal;
+        private Button terminalClose;
+        private TerminalMemory physicalMemory;private int physicalRevision=-2;private DeviceId physicalDevice;
+        private void LateUpdate()
+        {
+            if(controls==null||PhysicalDisplay==null)return;
+            var target=controls.Mode==ControlMode.Terminal?activeSurface:controls.Mode==ControlMode.Exploring?PhysicalDisplay.Choose(Camera.main):controls.Mode==ControlMode.Paused||controls.Mode==ControlMode.Field?PhysicalDisplay.Surface:null;
+            PhysicalDisplay.Interactive=controls.Mode==ControlMode.Terminal&&cameraRig.FocusReady;
+            bool changed=PhysicalDisplay.Select(target);PhysicalDisplay.PresentNativeGlass(controls.Mode==ControlMode.Terminal&&cameraRig.FocusReady,Camera.main);if(target==null)return;
+            bool legacy=target.Device==DeviceId.Ws07||target.Device==DeviceId.Edge01||target.Device==DeviceId.Core01;
+            var display=legacy?TerminalDisplay.Read(simulation,target.Device):null;
+            if(legacy&&!simulation[target.Device].Powered){PhysicalDisplay.Select(null);return;}
+            var playback=legacy?null:simulation.Screens.Find(target.Device);var current=legacy?display.Memory:playback?.Memory;
+            TerminalScenarioCatalog.TryGetScenario(target.Device.ToString(),out var idle);
+            host.text=legacy?display.Header:(playback?.Scenario??idle)?.GetOsTitle()??target.Device.Hostname().ToUpperInvariant();
+            inputPrompt.text=legacy?display.Prompt:(playback?.Scenario??idle)?.FormatPrompt()??"";
+            typedCommand.text=current?.Draft??"";
+            routineStatus.text=legacy?simulation.Terminals.Status(target.Device):playback?.Complete==true?playback.Scenario.CompletionNotice:"";
+            if(changed||physicalDevice!=target.Device||physicalMemory!=current||physicalRevision!=(current?.Revision??-1))
+            {
+                output.Clear();if(current!=null)foreach(var line in current.Lines)RenderLine(FormatTerminalOutput(line.text),line.style);
+                if(current==null||current.Lines.Count==0)RenderLine("Канал готов","muted");
+                physicalMemory=current;physicalRevision=current?.Revision??-1;physicalDevice=target.Device;
+                output.schedule.Execute(()=>output.scrollOffset=new Vector2(0,Mathf.Max(0,output.verticalScroller.highValue)));
+            }
+        }
         private VisualElement healthBarFill, damageVignette, deathScreen;
         private bool deathVisible;
         private Label healthText, deathCauseLabel, deathStatsLabel;
+        private VisualElement guardianHealth, guardianFill;
+        private Label guardianName;
+        private CrawlerMinibossController[] guardians = Array.Empty<CrawlerMinibossController>();
+        private CoreAvatarEncounter coreAvatar;
+        private FacilityMiniboss[] minibosses = Array.Empty<FacilityMiniboss>();
+        private float nextGuardianRefresh;
         private Button deathRestartButton, deathMainMenuButton;
         private PlayerHealth playerHealth;
         private DeathController deathController;
         private float vignetteTimer;
+        private FrontMenuFilm frontFilm;
         public void Initialize(FacilitySimulation model, ControlState state, FacilityInput inputBindings, FieldSession progress, FieldSystemUI fieldView, WorldSaveController saveController)
         {
             simulation=model; controls=state; bindings=inputBindings; field=progress; fieldUI=fieldView; persistence=saveController;
             var root=GetComponent<UIDocument>().rootVisualElement;
             terminal=root.Q("terminal"); pause=root.Q("pause"); hud=root.Q("hud"); front=root.Q("main-menu"); introduction=root.Q("introduction");
-            facilityMap=root.Q("facility-map"); locationSector=root.Q<Label>("location-sector"); locationRoom=root.Q<Label>("location-room");
-            mapPlayerStatus=root.Q<Label>("map-player-status"); mapSectorsContainer=root.Q("map-sectors-container");
+            facilityMap=root.Q("facility-map"); locationRoom=root.Q<Label>("location-room");
+            mapPlayerStatus=root.Q<Label>("map-player-status");
             openMap=root.Q<Button>("open-map"); if (openMap != null) openMap.clicked += OpenMap;
             closeMap=root.Q<Button>("close-map"); if (closeMap != null) closeMap.clicked += CloseMap;
             healthBarFill = root.Q("health-bar-fill");
             healthText = root.Q<Label>("health-text");
+            guardianHealth = root.Q("guardian-health");
+            guardianFill = root.Q("guardian-health-fill");
+            guardianName = root.Q<Label>("guardian-name");
             damageVignette = root.Q("damage-vignette");
             deathScreen = root.Q("death-screen");
             deathCauseLabel = root.Q<Label>("death-cause");
@@ -71,6 +140,7 @@ namespace Hostfall.UI
             {
                 BindPlayerHealth(playerMotor.GetComponent<PlayerHealth>(), playerMotor.GetComponent<DeathController>());
             }
+            InitializeMap(root);
             preferences=new GamePreferences(playerMotor);
             objective=root.Q<Label>("objective"); prompt=root.Q<Label>("interaction"); host=root.Q<Label>("host"); inputPrompt=root.Q<Label>("input-prompt");
             taskHeading=root.Q<Label>("task-heading"); menuTitle=root.Q<Label>("menu-title"); resume=root.Q<Button>("resume");
@@ -79,7 +149,7 @@ namespace Hostfall.UI
             output.horizontalScrollerVisibility=ScrollerVisibility.Hidden;
             output.verticalScroller.valueChanged+=value=> { if(memory!=null) memory.Scroll=Mathf.Max(0,value); };
             root.Q<Button>("open-journal").clicked+=fieldUI.OpenJournal; root.Q<Button>("open-archive").clicked+=fieldUI.OpenArchive;
-            root.Q<Button>("close-terminal").clicked+=CloseTerminal;
+            terminalClose=root.Q<Button>("close-terminal");terminalClose.clicked+=CloseTerminal;
             resume.clicked+=BeginSession;
             root.Q<Button>("front-continue").clicked+=BeginSession;
             root.Q<Button>("intro-understood").clicked+=()=> { field.AcknowledgeIntroduction(); controls.SetMode(ControlMode.Exploring); };
@@ -88,7 +158,25 @@ namespace Hostfall.UI
             root.Q<Button>("return-main").clicked+=ShowMainMenu; root.Q<Button>("menu-back").clicked+=Back;
             restart=root.Q<Button>("restart"); restart.clicked+=()=>OpenPage("new-game");
             root.Q<Button>("quit").clicked+=Application.Quit;
+            if (Application.platform == RuntimePlatform.WebGLPlayer)
+                foreach (string control in new[] { "quit", "load-game", "save-game" })
+                    root.Q<Button>(control).style.display = DisplayStyle.None;
             controls.Changed+=RefreshMode; simulation.StateChanged+=RefreshSimulation; persistence.StatusChanged+=OnSaveResult;
+            cameraRig=FindAnyObjectByType<PlayerCameraRig>();
+            if(!simulation.InteractiveComputers) PhysicalDisplay=new NearbyTerminalDisplay(GetComponent<UIDocument>(),terminal,FindObjectsByType<WorkstationSurface>(FindObjectsSortMode.None));
+            else
+            {
+                frontFilm = gameObject.AddComponent<FrontMenuFilm>();
+                frontFilm.Initialize(root.Q("front-film"));
+                root.Q<Button>("open-archive").style.display=DisplayStyle.None;
+                root.Q<Label>("intro-library").style.display=DisplayStyle.None;
+                root.Q<Label>("intro-title").text = "Пробуждение";
+                root.Q<Label>("intro-body").text = "Ты успел перенести сознание в сервисного робота. После аварии комплекс заперт, а охрана продолжает обход. Начни с домашнего терминала. Найди запись о смене и доберись до главного процессора.";
+                root.Q<Label>("intro-controls").text = "E — использовать компьютер. Esc — отойти. J — открыть задания. Shift — бежать, Пробел — прыгнуть, Q — сделать рывок. C — отбиться вблизи.";
+                if (Application.platform == RuntimePlatform.WebGLPlayer)
+                    root.Q<Label>("intro-controls").text += "\nОсмотреться можно стрелками или удерживая правую кнопку мыши.";
+            }
+            Opening=gameObject.AddComponent<OpeningSequence>();Opening.Initialize(cameraRig,controls,playerMotor,root,!persistence.Loaded,BeginSession,simulation.InteractiveComputers);
             ResetPage(); RefreshSimulation(); controls.SetMode(ControlMode.MainMenu); OnSaveResult();
         }
         public void SetInteractionPrompt(string text) { interactionText=text; RefreshActionNotice(); }
@@ -100,117 +188,47 @@ namespace Hostfall.UI
         }
         public void OpenTerminal(DeviceId id)
         {
+            if(simulation.InteractiveComputers)return;
             if(!simulation.Terminals.CanRun(id)) { ShowActionNotice(simulation.Terminals.Status(id)); return; }
             terminalOpenedFrame = Time.frameCount;
-            customSession = null;
+            scenarioPlayback = null; scenarioComplete=null;
             activeTerminal=id; session=new TerminalSession(simulation,id); memory=simulation[id].Terminal;
             simulation.Terminals.Begin(id);
             output.Clear(); foreach(var line in memory.Lines) RenderLine(line.text,line.style);
             renderedRevision=memory.Revision;
-            RefreshPrompt(); controls.SetMode(ControlMode.Terminal);
+            RefreshPrompt(); FocusScreen(id); controls.SetMode(ControlMode.Terminal);
             rootFocus();
         }
-
-        private struct CustomSession
-        {
-            public string Host;
-            public string Address;
-            public string WorkingDir;
-            public TerminalOsFamily OsFamily;
-            public string[] Commands;
-            public string[] Outputs;
-            public int Step;
-            public int Typed;
-            public float Wait;
-            public float SpeedMultiplier;
-            public bool IsPaused;
-            public string PromptFormat;
-            public string EventId;
-            public Action OnComplete;
-        }
-        private CustomSession? customSession;
 
         public void OpenTerminalScenario(TerminalScenario scenario, Action onComplete = null)
         {
-            if (scenario == null) return;
-            terminalOpenedFrame = Time.frameCount;
-            session = null; memory = null;
-
-            var cmds = new string[scenario.Steps.Count];
-            var outs = new string[scenario.Steps.Count];
-            for (int i = 0; i < scenario.Steps.Count; i++)
-            {
-                cmds[i] = scenario.Steps[i].Command;
-                outs[i] = scenario.Steps[i].Output;
-            }
-
-            customSession = new CustomSession
-            {
-                Host = scenario.Hostname,
-                Address = scenario.IpAddress,
-                WorkingDir = scenario.WorkingDirectory,
-                OsFamily = scenario.OsFamily,
-                Commands = cmds,
-                Outputs = outs,
-                Step = 0,
-                Typed = 0,
-                Wait = 0,
-                SpeedMultiplier = 1.0f,
-                IsPaused = false,
-                PromptFormat = scenario.FormatPrompt(),
-                EventId = scenario.WorldEventId,
-                OnComplete = onComplete
-            };
-            output.Clear();
-            host.text = scenario.GetOsTitle();
-            inputPrompt.text = scenario.FormatPrompt();
-            typedCommand.text = "";
-            routineStatus.text = "Авторизация канала · Скорость: 1.0x [SPACE - пауза, [ / ] - скорость]";
-            controls.SetMode(ControlMode.Terminal);
-            rootFocus();
+            if(simulation.InteractiveComputers)return;
+            if(scenario==null)return;
+            terminalOpenedFrame=Time.frameCount;session=null;activeTerminal=scenario.DeviceId;
+            scenarioPlayback=simulation.Screens.Present(scenario);scenarioComplete=onComplete;memory=scenarioPlayback.Memory;
+            playbackPaused=false;playbackSpeed=1;
+            output.Clear();foreach(var line in memory.Lines)RenderLine(FormatTerminalOutput(line.text),line.style);
+            renderedRevision=memory.Revision;host.text=scenario.GetOsTitle();inputPrompt.text=scenario.FormatPrompt();
+            typedCommand.text=memory.Draft;routineStatus.text=scenarioPlayback.Complete?scenario.CompletionNotice:"";
+            FocusScreen(scenario.DeviceId);controls.SetMode(ControlMode.Terminal);rootFocus();
         }
-
-        public void OpenTerminalSession(string hostName, string address, string[] commands, string[] outputs, Action onComplete = null)
+        public void OpenTerminalSession(string hostName,string address,string[] commands,string[] outputs,Action onComplete=null)
         {
-            terminalOpenedFrame = Time.frameCount;
-            session = null; memory = null;
-            customSession = new CustomSession
-            {
-                Host = hostName,
-                Address = address,
-                WorkingDir = "~",
-                OsFamily = TerminalOsFamily.LinuxBash,
-                Commands = commands ?? Array.Empty<string>(),
-                Outputs = outputs ?? Array.Empty<string>(),
-                Step = 0,
-                Typed = 0,
-                Wait = 0,
-                SpeedMultiplier = 1.0f,
-                IsPaused = false,
-                PromptFormat = "operator@" + hostName + ":~$ ",
-                EventId = null,
-                OnComplete = onComplete
-            };
-            output.Clear();
-            host.text = hostName.ToUpperInvariant() + " / " + address;
-            inputPrompt.text = "operator@" + hostName + ":~$ ";
-            typedCommand.text = "";
-            routineStatus.text = "Авторизация канала · Скорость: 1.0x [SPACE - пауза, [ / ] - скорость]";
-            controls.SetMode(ControlMode.Terminal);
-            rootFocus();
+            // Legacy callers still supply trusted authored data. No player code is executed.
+            var steps=(commands??Array.Empty<string>()).Select((c,i)=>new TerminalCommandStep(c,i<(outputs?.Length??0)?outputs[i]:"")).ToArray();
+            OpenTerminalScenario(new TerminalScenario("legacy."+hostName,DeviceId.Ws07,TerminalOsFamily.LinuxBash,hostName,address,"~",steps,"Сеанс завершён",null),onComplete);
         }
 
-        private void rootFocus()=>GetComponent<UIDocument>().rootVisualElement.Q<Button>("close-terminal").Focus();
+        private void rootFocus()=>terminalClose?.Focus();
         private void CloseTerminal()
         {
             // Do not call OnComplete for unfinished session on exit (ADR 0007 / Rule 1.1 Item B)
+            cameraRig?.ReleaseFocus();if(activeSurface!=null)activeSurface.SetNativeOverlay(false);activeSurface=null;
             session = null;
             memory = null;
-            customSession = null;
-            GetComponent<UIDocument>()?.rootVisualElement?.Q<Button>("close-terminal")?.Blur();
+            scenarioPlayback = null; scenarioComplete=null;
+            terminalClose?.Blur();
             controls.SetMode(ControlMode.Exploring);
-            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-            UnityEngine.Cursor.visible = false;
         }
         public void BeginSession()
         {
@@ -219,6 +237,9 @@ namespace Hostfall.UI
                 deathController?.TriggerDeath("Критическое разрушение корпуса");
                 return;
             }
+            if(simulation.InteractiveComputers && GetComponent<ComputerRuntimeUI>()?.ResumeComputer()==true)return;
+            if(Opening!=null&&Opening.Playing)return;
+            if(Opening!=null&&Opening.TryBegin())return;
             ResetPage(); controls.SetMode(field.IntroductionSeen?ControlMode.Exploring:ControlMode.Introduction);
         }
         public void ShowMainMenu() { ResetPage(); controls.SetMode(ControlMode.MainMenu); }
@@ -239,6 +260,9 @@ namespace Hostfall.UI
             if(bindings==null) return;
             if(deathVisible) return;
             RefreshActionNotice();
+            RefreshObjective();
+            RefreshWeaponStatus();
+            RefreshGuardianHealth();
 
             if (vignetteTimer > 0f)
             {
@@ -249,16 +273,10 @@ namespace Hostfall.UI
                 }
             }
 
-            if(locationSector != null && locationRoom != null)
-            {
-                if(playerMotor == null) playerMotor = UnityEngine.Object.FindAnyObjectByType<PlayerMotor>();
-                Vector3 playerPos = playerMotor != null ? playerMotor.transform.position : 
-                    (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
-                var curSector = GetCurrentSectorInfo(playerPos);
-                locationSector.text = curSector.Code;
-                locationRoom.text = curSector.Name;
-            }
+            if(Time.unscaledTime>=nextMapRefresh && (controls.Mode==ControlMode.Exploring||controls.Mode==ControlMode.Map))
+            { RefreshMap();nextMapRefresh=Time.unscaledTime+.1f; }
 
+            if(controls.Mode==ControlMode.Computer)return;
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if(kb != null && kb.mKey.wasPressedThisFrame)
             {
@@ -274,13 +292,13 @@ namespace Hostfall.UI
                 }
             }
 
-            if(controls.Mode==ControlMode.Terminal && memory!=null)
+            if(controls.Mode==ControlMode.Terminal && session!=null && (activeSurface==null||cameraRig.FocusReady))
             {
-                bool fastForward = bindings != null && (bindings.Interact.WasPressedThisFrame() || bindings.Pulse.WasPressedThisFrame());
+                bool fastForward = bindings != null && bindings.Pulse.WasPressedThisFrame();
                 simulation.Terminals.Tick(activeTerminal, fastForward ? 5f : Time.unscaledDeltaTime * 2.5f);
                 RefreshPrompt();
             }
-            else if(controls.Mode==ControlMode.Terminal && customSession.HasValue)
+            else if(controls.Mode==ControlMode.Terminal && scenarioPlayback!=null && (activeSurface==null||cameraRig.FocusReady))
             {
                 TickCustomSession(Time.unscaledDeltaTime);
             }
@@ -304,12 +322,17 @@ namespace Hostfall.UI
         }
         private void RefreshMode(ControlMode mode)
         {
-            if(mode!=ControlMode.Exploring && mode!=ControlMode.Paused && isMapOpen) CloseMap();
+            if(mode!=ControlMode.Terminal&&mode!=ControlMode.Computer){cameraRig?.ReleaseFocus();if(activeSurface!=null)activeSurface.SetNativeOverlay(false);activeSurface=null;}
+            else if(activeSurface==null&&(session!=null||scenarioPlayback!=null))FocusScreen(activeTerminal);
+            if(mode!=ControlMode.Map && isMapOpen)
+            { isMapOpen=false;facilityMap.style.display=DisplayStyle.None; }
             hud.style.display=mode==ControlMode.Exploring?DisplayStyle.Flex:DisplayStyle.None;
             if(mode==ControlMode.Exploring) entered=true;
             if(mode!=ControlMode.Paused&&mode!=ControlMode.MainMenu) ResetPage();
             terminal.style.display=mode==ControlMode.Terminal?DisplayStyle.Flex:DisplayStyle.None;
-            front.style.display=mode==ControlMode.MainMenu&&page.Length==0?DisplayStyle.Flex:DisplayStyle.None;
+            bool showFront = mode == ControlMode.MainMenu && page.Length == 0;
+            front.style.display = showFront ? DisplayStyle.Flex : DisplayStyle.None;
+            frontFilm?.SetVisible(showFront);
             pause.style.display=mode==ControlMode.Paused||(mode==ControlMode.MainMenu&&page.Length>0)?DisplayStyle.Flex:DisplayStyle.None;
             pause.EnableInClassList("front-dialog",mode==ControlMode.MainMenu);
             introduction.style.display=mode==ControlMode.Introduction?DisplayStyle.Flex:DisplayStyle.None;
@@ -340,6 +363,7 @@ namespace Hostfall.UI
         }
         public void OpenPage(string name)
         {
+            if (Application.platform == RuntimePlatform.WebGLPlayer && name is "load" or "save") return;
             if((name=="load"||name=="new-game")&&controls.Mode!=ControlMode.MainMenu) return;
             page=name; confirmSlot=""; confirmingNewGame=false;
             controls.SetMode(controls.Mode==ControlMode.MainMenu?ControlMode.MainMenu:ControlMode.Paused); BuildPage();
@@ -350,10 +374,20 @@ namespace Hostfall.UI
             pageTitle.text=page=="new-game"?"Новая игра":page=="save"?"Сохранить игру":page=="load"?"Загрузить игру":page=="settings"?"Настройки":"Управление";
             if(page=="new-game")
             {
+                if (simulation.InteractiveComputers)
+                {
+                    var lore = new Label("На северном комплексе NORTHLINE пропала ночная смена. Перед потерей связи инженер перенёс своё сознание в сервисный корпус.\n\n" +
+                        "Ты приходишь в себя в убежище. Комплекс заперт. Последняя запись о смене подписана твоим именем.") { name = "new-game-lore" };
+                    lore.AddToClassList("new-game-lore");
+                    pageBody.Add(lore);
+                }
+                else
+                {
                 var caption=new Label("Язык программирования"); caption.AddToClassList("front-caption"); pageBody.Add(caption);
                 var languages=new VisualElement(); languages.AddToClassList("menu-row"); pageBody.Add(languages);
                 languages.Add(new Button(()=>ChooseLanguage("cpp")) { name="language-cpp", text="C++" });
                 languages.Add(new Button(()=>ChooseLanguage("python")) { name="language-python", text="Python" });
+                }
                 var start=new Button() { name="start-new-game", text="Начать игру" }; start.AddToClassList("primary");
                 start.style.marginTop=20;
                 start.clicked+=()=>
@@ -367,6 +401,14 @@ namespace Hostfall.UI
             {
                 var volume=new Slider("Громкость",0,1) { name="setting-volume", value=preferences.Volume, showInputField=true };
                 volume.RegisterValueChangedCallback(e=>preferences.SetVolume(e.newValue)); pageBody.Add(volume);
+                var motion=new Slider("Движение камеры",0,1){name="setting-motion",value=preferences.MotionIntensity,showInputField=true};
+                motion.RegisterValueChangedCallback(e=>preferences.SetMotion(e.newValue));pageBody.Add(motion);
+                if (simulation.InteractiveComputers)
+                {
+                    var scares = new Slider("Резкие эффекты", 0, 1) { name = "setting-scares", value = preferences.ScareIntensity, showInputField = true };
+                    scares.RegisterValueChangedCallback(e => preferences.SetScareIntensity(e.newValue));
+                    pageBody.Add(scares);
+                }
                 var sensitivity=new Slider("Чувствительность мыши",.4f,2) { name="setting-sensitivity", value=preferences.Sensitivity, showInputField=true };
                 sensitivity.RegisterValueChangedCallback(e=>preferences.SetSensitivity(e.newValue)); pageBody.Add(sensitivity);
                 var fullscreen=new Toggle("Полный экран") { name="setting-fullscreen", value=preferences.Fullscreen };
@@ -378,9 +420,19 @@ namespace Hostfall.UI
             }
             if(page=="controls")
             {
-                Group("Движение"); Binding("W A S D","Идти"); Binding("Мышь","Осмотреться"); Binding("Shift","Бежать"); Binding("Пробел","Прыгнуть"); Binding("Q","Рывок по направлению движения"); Binding("V","Сменить вид");
-                Group("Действия"); Binding("E","Дверь / предмет / повторный просмотр терминала"); Binding("F","Направленный импульс против робота"); Binding("Терминал","Подойдите и задержите взгляд — герой подключится сам");
-                Group("Интерфейс"); Binding("Esc","Назад / пауза"); Binding("J","Задания"); Binding("K","Знания"); Binding("F5","Быстрое сохранение"); FocusPage(); return;
+                Group("Движение"); Binding("W A S D","Идти"); Binding("Мышь / ↑ ↓ ← →","Осмотреться");
+                if (Application.platform == RuntimePlatform.WebGLPlayer) Binding("ПКМ + мышь", "Осмотреться при свободном курсоре");
+                Binding("Shift","Бежать"); Binding("Пробел","Прыгнуть"); Binding("Q","Рывок по направлению движения"); Binding("V","Сменить вид");
+                Group("Оружие");Binding("ЛКМ","Выстрел · удерживать для заряда TITAN");Binding("R","Перезарядить · ARC-12 можно прервать выстрелом");Binding("E","Подобрать оружие · прежнее выпадет рядом");Binding("G","ЭМИ-граната");
+                Group("Действия"); Binding("E","Дверь / предмет / компьютер"); Binding("F","Направленный импульс против робота");
+                if(simulation.InteractiveComputers)
+                {
+                    Binding("C", "Удар вблизи / отразить захват");
+                    Binding("Компьютер","Мышь — приложения и окна. Стрелки / WASD — VENTFLOW. Ввод команд доступен дома.");
+                    Binding("Esc","Немедленно отойти от компьютера");Binding("Tab / ↑ ↓","Домашний терминал: дополнение / история");
+                }
+                else { Binding("Терминал","Подойдите к экрану и нажмите E — герой проведёт сеанс сам"); Binding("Esc / E","Отойти от компьютера"); }
+                Group("Интерфейс"); Binding("Esc","Назад / пауза"); Binding("J","Задания"); if(!simulation.InteractiveComputers)Binding("K","Знания"); if (Application.platform != RuntimePlatform.WebGLPlayer) Binding("F5","Быстрое сохранение"); FocusPage(); return;
             }
             bool saving=page=="save";
             foreach(var slot in persistence.Slots.Where(s=>!saving||!s.Automatic))
@@ -421,10 +473,42 @@ namespace Hostfall.UI
             // Routine success stays silent; only a problem needs the player's attention.
             menuError.text=persistence.Status; menuError.style.display=persistence.Status.Length>0?DisplayStyle.Flex:DisplayStyle.None;
         }
+        private void RefreshWeaponStatus()
+        {
+            if(playerMotor==null)return;
+            var weapon=displayedWeapon??(displayedWeapon=playerMotor.GetComponent<PlayerWeapon>());
+            if(weaponStatus==null)weaponStatus=hud.Q<Label>("weapon-status");
+            if(weaponStatus==null)return;
+            bool visible=weapon!=null&&weapon.HasWeapon;
+            if(weaponWasVisible!=visible){weaponStatus.style.display=visible?DisplayStyle.Flex:DisplayStyle.None;weaponWasVisible=visible;}
+            if(!visible)return;
+            int percent=Mathf.RoundToInt(weapon.Charge*100);
+            if(shownAmmo==weapon.CurrentAmmo&&shownReserve==weapon.ReserveAmmo&&shownKind==(int)weapon.ActiveWeapon&&shownCharge==percent&&shownReload==weapon.IsReloading&&shownHot==weapon.IsOverheated)return;
+            shownAmmo=weapon.CurrentAmmo;shownReserve=weapon.ReserveAmmo;shownKind=(int)weapon.ActiveWeapon;shownCharge=percent;shownReload=weapon.IsReloading;shownHot=weapon.IsOverheated;
+            string state=weapon.IsReloading?" · перезарядка":weapon.IsOverheated?" · охлаждение":weapon.Charge>.01f?" · "+Mathf.RoundToInt(weapon.Charge*100)+"%":"";
+            string text=PlayerWeapon.DisplayName(weapon.ActiveWeapon)+"  "+weapon.CurrentAmmo+" / "+weapon.ReserveAmmo+state;
+            if(weaponStatus.text!=text)weaponStatus.text=text;
+        }
+        public void AddWorldWeapon(Component item)
+        {if(mapWorld!=null)mapWorld.Markers.Add(new Hostfall.Mapping.MapMarker{Source=item,Kind="item",Label="Оружие"});}
+        private void RefreshObjective()
+        {
+            string text=simulation.Objective;
+            if (simulation.Mission.CompletedObjectives==3 && !simulation.Mission.IsComplete)
+                text=DataCartridgeState.IsInserted ? "Запустите сеанс DATA-01, чтобы открыть шлюзы."
+                    : DataCartridgeState.HasCartridge ? "Установите картридж в считыватель слева от экрана DATA-01."
+                    : "Найдите картридж на верхнем посту наблюдения. Лестница — справа от входа в вычислительный узел.";
+            if (objective.text!=text) objective.text=text;
+            bool complete = simulation.ComputerCampaign is { } campaign
+                ? campaign.CurrentStage == CampaignStage.Epilogue
+                : simulation.Mission.IsComplete;
+            objective.EnableInClassList("complete", complete);
+            taskHeading.text = complete ? "Выполнено" : "Задание";
+        }
         private void RefreshSimulation()
         {
-            objective.text=simulation.Objective; objective.EnableInClassList("complete",simulation.Mission.IsComplete);
-            taskHeading.text=simulation.Mission.IsComplete?"Выполнено":"Задание"; RefreshPrompt();
+            RefreshObjective();
+            RefreshPrompt();
             if(memory!=null && controls.Mode==ControlMode.Terminal)
             {
                 typedCommand.text=memory.Draft;
@@ -440,7 +524,7 @@ namespace Hostfall.UI
         }
         private void RenderTranscript()
         {
-            output.Clear(); foreach(var entry in memory.Lines) RenderLine(entry.text,entry.style);
+            output.Clear(); foreach(var entry in memory.Lines) RenderLine(FormatTerminalOutput(entry.text),entry.style);
             renderedRevision=memory.Revision;
             output.schedule.Execute(()=>output.scrollOffset=new Vector2(0,Mathf.Max(0,output.verticalScroller.highValue)));
         }
@@ -470,332 +554,76 @@ namespace Hostfall.UI
 
         public void TickCustomSession(float dt)
         {
-            if(!customSession.HasValue || dt <= 0 || float.IsNaN(dt)) return;
-            var cs = customSession.Value;
-            if(cs.Step >= cs.Commands.Length) return;
-
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null)
+            if(scenarioPlayback==null)return;
+            var kb=UnityEngine.InputSystem.Keyboard.current;
+            if(kb!=null)
             {
-                if (kb.spaceKey.wasPressedThisFrame)
-                {
-                    cs.IsPaused = !cs.IsPaused;
-                    routineStatus.text = cs.IsPaused
-                        ? "Сеанс приостановлен [SPACE - продолжить]"
-                        : $"Авторизация канала · Скорость: {cs.SpeedMultiplier:F1}x [SPACE - пауза, [ / ] - скорость]";
-                    customSession = cs;
-                    return;
-                }
-                if (kb.leftBracketKey.wasPressedThisFrame)
-                {
-                    cs.SpeedMultiplier = Mathf.Max(0.5f, cs.SpeedMultiplier - 0.25f);
-                    routineStatus.text = $"Авторизация канала · Скорость: {cs.SpeedMultiplier:F1}x [SPACE - пауза, [ / ] - скорость]";
-                    customSession = cs;
-                }
-                else if (kb.rightBracketKey.wasPressedThisFrame)
-                {
-                    cs.SpeedMultiplier = Mathf.Min(4.0f, cs.SpeedMultiplier + 0.5f);
-                    routineStatus.text = $"Авторизация канала · Скорость: {cs.SpeedMultiplier:F1}x [SPACE - пауза, [ / ] - скорость]";
-                    customSession = cs;
-                }
+                if(kb.spaceKey.wasPressedThisFrame)playbackPaused=!playbackPaused;
+                if(kb.leftBracketKey.wasPressedThisFrame)playbackSpeed=Mathf.Max(.5f,playbackSpeed-.25f);
+                if(kb.rightBracketKey.wasPressedThisFrame)playbackSpeed=Mathf.Min(4,playbackSpeed+.5f);
             }
-
-            if (cs.IsPaused) return;
-
-            string pfx = string.IsNullOrEmpty(cs.PromptFormat) ? ("operator@" + cs.Host + ":~$ ") : cs.PromptFormat;
-
-            bool fastForward = bindings != null && (bindings.Interact.WasPressedThisFrame() || bindings.Pulse.WasPressedThisFrame());
-            if (fastForward)
-            {
-                while (cs.Step < cs.Commands.Length)
-                {
-                    string fcmd = cs.Commands[cs.Step];
-                    RenderLine("<color=#55AAFF>" + pfx + "</color>" + fcmd, "prompt");
-                    if (cs.Step < cs.Outputs.Length && !string.IsNullOrEmpty(cs.Outputs[cs.Step]))
-                    {
-                        RenderLine(FormatTerminalOutput(cs.Outputs[cs.Step]), "result");
-                    }
-                    cs.Step++;
-                }
-                cs.Typed = 0;
-                cs.Wait = 0;
-                typedCommand.text = "";
-                routineStatus.text = "Сеанс завершён · Доступ открыт";
-                output.schedule.Execute(() => output.scrollOffset = new Vector2(0, Mathf.Max(0, output.verticalScroller.highValue)));
-                var callback = cs.OnComplete;
-                cs.OnComplete = null;
-                customSession = cs;
-                callback?.Invoke();
-                return;
-            }
-
-            string cmd = cs.Commands[cs.Step];
-            cs.Wait += Mathf.Min(dt * cs.SpeedMultiplier, 0.25f);
-
-            if(cs.Typed < cmd.Length)
-            {
-                int count = (int)(cs.Wait * 450);
-                if(count > 0)
-                {
-                    cs.Wait -= count / 450f;
-                    cs.Typed = Mathf.Min(cmd.Length, cs.Typed + count);
-                    typedCommand.text = cmd.Substring(0, cs.Typed);
-                    customSession = cs;
-                }
-                return;
-            }
-
-            if(cs.Wait < 0.06f) { customSession = cs; return; }
-
-            // Commit command
-            RenderLine("<color=#55AAFF>" + pfx + "</color>" + cmd, "prompt");
-            if(cs.Step < cs.Outputs.Length && !string.IsNullOrEmpty(cs.Outputs[cs.Step]))
-            {
-                RenderLine(FormatTerminalOutput(cs.Outputs[cs.Step]), "result");
-            }
-            output.schedule.Execute(()=>output.scrollOffset=new Vector2(0,Mathf.Max(0,output.verticalScroller.highValue)));
-
-            cs.Step++;
-            cs.Typed = 0;
-            cs.Wait = 0;
-            typedCommand.text = "";
-
-            if(cs.Step == cs.Commands.Length)
-            {
-                routineStatus.text = "Сеанс завершён · Доступ открыт";
-                var callback = cs.OnComplete;
-                cs.OnComplete = null;
-                customSession = cs;
-                callback?.Invoke();
-                return;
-            }
-
-            customSession = cs;
+            if(!playbackPaused)scenarioPlayback.Tick(dt*playbackSpeed);
+            typedCommand.text=memory.Draft;
+            if(renderedRevision!=memory.Revision)RenderTranscript();
+            routineStatus.text=scenarioPlayback.Complete?scenarioPlayback.Scenario.CompletionNotice:playbackPaused?"Приостановлено":"";
+            simulation.NotifyTerminalChanged();
+            if(scenarioPlayback.Complete&&scenarioComplete!=null&&scenarioPlayback.ClaimCompletion())
+            {var callback=scenarioComplete;scenarioComplete=null;callback();}
         }
-        public struct SectorMapEntry
+        private void InitializeMap(VisualElement root)
         {
-            public string Code;
-            public string Name;
-            public string Detail;
-            public string Connections;
-            public Bounds BoundingBox;
+            mapWorld=new FacilityMapWorld(simulation.Exploration);
+            mapView=new FacilityMapView(mapWorld);radar=new FacilityMapView(mapWorld,true);
+            root.Q("map-plan").Add(mapView);root.Q("radar-slot").Insert(0,radar);
+            root.Q<Button>("map-center").clicked+=mapView.FocusPlayer;
+            mapView.LevelChanged+=_=>RefreshMapLevelButtons();
+            root.Q<Button>("map-overview").clicked+=mapView.FitAll;
+            root.Q<Button>("map-minus").clicked+=()=>mapView.ZoomBy(1/1.3f);
+            root.Q<Button>("map-plus").clicked+=()=>mapView.ZoomBy(1.3f);
+            foreach(int level in mapWorld.Rooms.Select(r=>r.Level).Distinct().OrderBy(l=>l))
+            {
+                int selected=level;
+                var button=new Button(()=>mapView.SetLevel(selected))
+                    {name="map-level-"+level,text=level<0?"Нижний":level==0?"Основной":"Галереи"};
+                root.Q("map-levels").Add(button);
+            }
+            root.RegisterCallback<GeometryChangedEvent>(e =>
+            {
+                root.EnableInClassList("hud-compact", e.newRect.width < 800 || e.newRect.height < 540);
+                root.EnableInClassList("front-stacked", e.newRect.width < 900);
+            });
+            RefreshMap();
         }
-
-        private static readonly SectorMapEntry[] FacilitySectors = new SectorMapEntry[]
+        public void RefreshMap()
         {
-            new SectorMapEntry
-            {
-                Code = "УБЕЖИЩЕ",
-                Name = "Мастерская инженера [HOME]",
-                Detail = "Автономное укрытие. Терминал HOME-PC, верстак ремонта Type-IV, архив инцидента.",
-                Connections = "Связь: Сектор 00 (Через сервисный шлюз SEC-HOME)",
-                BoundingBox = new Bounds(new Vector3(0, 1.5f, -14.0f), new Vector3(12f, 8f, 12f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 00",
-                Name = "Операторская (SOC)",
-                Detail = "Точка эвакуации и мониторинга комплекса. Терминал WS-07, главный энергощит.",
-                Connections = "Связь: Сектор 01 (Служебный коридор)",
-                BoundingBox = new Bounds(new Vector3(0, 1.5f, -3.5f), new Vector3(12f, 8f, 13f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 01",
-                Name = "Серверный зал и коридор",
-                Detail = "Служебный проход, узел распределения охлаждения, терминал CORE-01.",
-                Connections = "Связь: Сектор 00 ↔ Сектор 02",
-                BoundingBox = new Bounds(new Vector3(0, 2f, 10f), new Vector3(12f, 8f, 14f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 02",
-                Name = "Вычислительный узел",
-                Detail = "Стойки квантовых вычислений, консоль DATA-01, смотровой мезонин.",
-                Connections = "Связь: Сектор 01 ↔ Арсенал ↔ Сектор 03 ↔ Сектор 04",
-                BoundingBox = new Bounds(new Vector3(0, 2.5f, 27.5f), new Vector3(14f, 8f, 21f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 02-А",
-                Name = "Оружейный арсенал [SEC-02]",
-                Detail = "Тактический дробовик ARC-12, стеллажи боеприпасов, шкафы амуниции.",
-                Connections = "Связь: Прямой доступ из Сектора 02",
-                BoundingBox = new Bounds(new Vector3(11f, 2f, 26f), new Vector3(8f, 8f, 12f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 03",
-                Name = "Энергоцентр",
-                Detail = "Трансформаторные подстанции, распределительные шины, консоль SUB-01.",
-                Connections = "Связь: Сектор 02 ↔ Служебный обход",
-                BoundingBox = new Bounds(new Vector3(-16.5f, 3f, 28f), new Vector3(19f, 9f, 20f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 04",
-                Name = "Квантовый узел",
-                Detail = "Криогенный шлюз CRYO-01, эстакадный мост, транзитные коммуникационные траншеи.",
-                Connections = "Связь: Сектор 02 ↔ Сектор 05 (Логистика)",
-                BoundingBox = new Bounds(new Vector3(0, 3f, 50f), new Vector3(20f, 9f, 24f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 05",
-                Name = "Логистический центр",
-                Detail = "Грузовой терминал, контейнерные платформы, патрули автономных стражей.",
-                Connections = "Связь: Сектор 04 ↔ Сектор 06 ↔ Обратный шлюз Сектора 09",
-                BoundingBox = new Bounds(new Vector3(-5f, 4f, 78.5f), new Vector3(42f, 10f, 35f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 06",
-                Name = "Завод робототехники",
-                Detail = "Линии автоматической сборки, подвесные мостки, калибровочные станции.",
-                Connections = "Связь: Сектор 05 ↔ Сектор 07 ↔ Сектор 08 (Нейроархив)",
-                BoundingBox = new Bounds(new Vector3(33.5f, 5f, 80f), new Vector3(38f, 12f, 32f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 07",
-                Name = "Цитадель безопасности",
-                Detail = "Укрепленный блокпост, тяжелые рельсовые турели RailEye, охранный рубеж.",
-                Connections = "Связь: Сектор 06 ↔ Скоростной переход в Сектор 00",
-                BoundingBox = new Bounds(new Vector3(35f, 4f, 38f), new Vector3(40f, 10f, 50f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 08",
-                Name = "Нейроархив",
-                Detail = "Хранилище матриц личности и бэкапов архитектуры SUPER, монолиты памяти.",
-                Connections = "Связь: Сектор 06 ↔ Сектор 09 (Облачный узел)",
-                BoundingBox = new Bounds(new Vector3(71f, 4f, 52f), new Vector3(36f, 10f, 70f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 09",
-                Name = "Облачный узел управления",
-                Detail = "Релейные мачты синхронизации, реакторный распределитель, терминалы фазового доступа.",
-                Connections = "Связь: Сектор 08 ↔ Сектор 10 ↔ Шлюз в Логистику (С05)",
-                BoundingBox = new Bounds(new Vector3(36f, 4f, 105f), new Vector3(45f, 10f, 45f))
-            },
-            new SectorMapEntry
-            {
-                Code = "СЕКТОР 10",
-                Name = "Ядро суперкомпьютера",
-                Detail = "Главная камера центрального процессора. Арена с автономным боссом ATLAS-0.",
-                Connections = "Связь: Финальный рубеж комплекса NORTHLINE",
-                BoundingBox = new Bounds(new Vector3(10f, 6f, 160f), new Vector3(55f, 15f, 80f))
-            }
-        };
-
-        public static SectorMapEntry GetCurrentSectorInfo(Vector3 pos)
-        {
-            if (pos.z < -8.5f)
-                return FacilitySectors[0];
-
-            if (FacilitySectors[4].BoundingBox.Contains(pos))
-                return FacilitySectors[4];
-
-            for (int i = 0; i < FacilitySectors.Length; i++)
-            {
-                if (i == 4) continue;
-                if (FacilitySectors[i].BoundingBox.Contains(pos))
-                    return FacilitySectors[i];
-            }
-
-            float closestDist = float.MaxValue;
-            int bestIdx = 1;
-            for (int i = 0; i < FacilitySectors.Length; i++)
-            {
-                float d = Vector3.Distance(pos, FacilitySectors[i].BoundingBox.center);
-                if (d < closestDist)
-                {
-                    closestDist = d;
-                    bestIdx = i;
-                }
-            }
-            return FacilitySectors[bestIdx];
+            if(mapWorld==null||playerMotor==null)return;
+            mapWorld.Refresh();var position=playerMotor.transform.position;
+            if(controls.Mode==ControlMode.Exploring)mapWorld.Visit(position);
+            var room=mapWorld.At(position);
+            locationRoom.text=room?.Name??"Переход";
+            mapPlayerStatus.text=room?.Name??"Переход";
+            radar.Refresh(position,playerMotor.transform.eulerAngles.y);
+            if(isMapOpen)mapView.Refresh(position,playerMotor.transform.eulerAngles.y);
         }
-
+        private void RefreshMapLevelButtons()
+        {
+            foreach(var button in GetComponent<UIDocument>().rootVisualElement.Q("map-levels").Query<Button>().ToList())
+                button.EnableInClassList("map-level-selected",button.name=="map-level-"+mapView.Level);
+        }
         public void OpenMap()
         {
-            if (facilityMap == null) return;
-            isMapOpen = true;
-            facilityMap.style.display = DisplayStyle.Flex;
-            BuildMapCards();
-            closeMap?.Focus();
+            if(facilityMap==null||isMapOpen||page.Length>0||!(controls.Mode==ControlMode.Exploring||controls.Mode==ControlMode.Paused))return;
+            RefreshMap();mapReturnMode=controls.Mode;isMapOpen=true;controls.SetMode(ControlMode.Map);
+            facilityMap.style.display=DisplayStyle.Flex;
+            mapView.Refresh(playerMotor.transform.position,playerMotor.transform.eulerAngles.y);
+            mapView.FocusPlayer();RefreshMapLevelButtons();closeMap?.Focus();
         }
-
         public void CloseMap()
         {
-            if (facilityMap == null) return;
-            isMapOpen = false;
-            facilityMap.style.display = DisplayStyle.None;
-            if (controls != null && controls.Mode == ControlMode.Paused)
-                resume?.Focus();
-        }
-
-        private void BuildMapCards()
-        {
-            if (mapSectorsContainer == null) return;
-            mapSectorsContainer.Clear();
-
-            Vector3 playerPos = playerMotor != null ? playerMotor.transform.position : 
-                (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
-            var currentSector = GetCurrentSectorInfo(playerPos);
-
-            if (mapPlayerStatus != null)
-            {
-                mapPlayerStatus.text = $"{currentSector.Code} · {currentSector.Name}   [ X: {playerPos.x:F1}  Y: {playerPos.y:F1}  Z: {playerPos.z:F1} ]";
-            }
-
-            for (int i = 0; i < FacilitySectors.Length; i++)
-            {
-                var entry = FacilitySectors[i];
-                bool isCurrent = entry.Code == currentSector.Code;
-
-                var card = new VisualElement();
-                card.AddToClassList("map-sector-card");
-                if (isCurrent)
-                {
-                    card.AddToClassList("map-sector-current");
-                }
-
-                var head = new VisualElement();
-                head.AddToClassList("map-card-head");
-
-                var codeLabel = new Label(entry.Code);
-                codeLabel.AddToClassList("map-card-code");
-                head.Add(codeLabel);
-
-                if (isCurrent)
-                {
-                    var badge = new Label("ВЫ ЗДЕСЬ");
-                    badge.AddToClassList("map-card-badge");
-                    badge.AddToClassList("badge-here");
-                    head.Add(badge);
-                }
-
-                card.Add(head);
-
-                var title = new Label(entry.Name);
-                title.AddToClassList("map-card-title");
-                card.Add(title);
-
-                var detail = new Label(entry.Detail);
-                detail.AddToClassList("map-card-detail");
-                card.Add(detail);
-
-                if (!string.IsNullOrEmpty(entry.Connections))
-                {
-                    var loop = new Label(entry.Connections);
-                    loop.AddToClassList("map-card-loop");
-                    card.Add(loop);
-                }
-
-                mapSectorsContainer.Add(card);
-            }
+            if(!isMapOpen)return;
+            isMapOpen=false;facilityMap.style.display=DisplayStyle.None;
+            if(controls.Mode==ControlMode.Map)controls.SetMode(mapReturnMode);
+            if(controls.Mode==ControlMode.Paused)resume?.Focus();
         }
 
         public void TriggerDamageFlash()
@@ -837,6 +665,47 @@ namespace Hostfall.UI
             }
         }
 
+        public void BindGuardians(CrawlerMinibossController[] actors) => guardians = actors;
+        public void BindCoreAvatar(CoreAvatarEncounter encounter) => coreAvatar = encounter;
+        public void BindMinibosses(FacilityMiniboss[] encounters) => minibosses = encounters;
+
+        private void RefreshGuardianHealth()
+        {
+            if (guardianHealth == null || Time.unscaledTime < nextGuardianRefresh) return;
+            nextGuardianRefresh = Time.unscaledTime + .1f;
+            if (controls.Mode == ControlMode.Exploring && coreAvatar != null && coreAvatar.Visible)
+            {
+                guardianHealth.style.display = DisplayStyle.Flex;
+                guardianFill.style.width = Length.Percent(coreAvatar.Health / Hostfall.Simulation.Computers.CoreAvatarBattle.Maximum * 100);
+                guardianName.text = coreAvatar.IsStunned ? "SUPER · Реактор открыт" : "SUPER · Фаза " + coreAvatar.Battle.Phase;
+                return;
+            }
+            if (controls.Mode == ControlMode.Exploring)
+                foreach (var boss in minibosses)
+                {
+                    if (boss == null || !boss.Visible) continue;
+                    guardianHealth.style.display = DisplayStyle.Flex;
+                    guardianName.text = boss.IsStunned ? boss.Caption + " · защита открыта" : boss.Caption;
+                    guardianFill.style.width = Length.Percent(boss.Health / boss.Maximum * 100);
+                    return;
+                }
+            RobotCombatState visible = null;
+            float nearest = 20 * 20;
+            if (controls.Mode == ControlMode.Exploring && playerMotor != null)
+                foreach (var guardian in guardians)
+                {
+                    if (guardian == null || !guardian.IsEngaged) continue;
+                    float distance = (guardian.transform.position - playerMotor.transform.position).sqrMagnitude;
+                    if (distance >= nearest) continue;
+                    nearest = distance;
+                    visible = guardian.EncounterHealth;
+                }
+            guardianHealth.style.display = visible != null ? DisplayStyle.Flex : DisplayStyle.None;
+            if (visible == null) return;
+            guardianFill.style.width = Length.Percent(visible.Health / visible.Maximum * 100f);
+            guardianName.text = visible.CoreExposed ? "MANTIS-6 · Реактор открыт" : "MANTIS-6";
+        }
+
         public void UpdateHealthUI(float current, float max)
         {
             if (healthText != null) healthText.text = $"{Mathf.CeilToInt(current)}%";
@@ -844,6 +713,6 @@ namespace Hostfall.UI
         }
 
         private void OnDestroy()
-        { if(controls!=null) controls.Changed-=RefreshMode; if(simulation!=null) simulation.StateChanged-=RefreshSimulation; if(persistence!=null) persistence.StatusChanged-=OnSaveResult; }
+        { PhysicalDisplay?.Dispose(); if(controls!=null) controls.Changed-=RefreshMode; if(simulation!=null) simulation.StateChanged-=RefreshSimulation; if(persistence!=null) persistence.StatusChanged-=OnSaveResult; }
     }
 }

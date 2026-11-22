@@ -27,11 +27,33 @@ namespace Hostfall.Player
         private float dashRemaining;
         private Vector3 dashDirection;
         private bool airDashUsed;
+        private float mobilityLoss;
         public event System.Action<bool> DashFeedback;
         public float Pitch { get; private set; }
         public float LookSensitivity { get; set; } = 1;
+        public float MotionIntensity {get;set;}=.5f;
+        public float ScareIntensity { get; set; } = 1;
+        private float startleAt = -10;
+        public float Startle
+        {
+            get
+            {
+                float remaining = Mathf.Clamp01(1 - (Time.time - startleAt) / .23f);
+                return remaining * remaining * ScareIntensity;
+            }
+        }
+        public void StartleFromImpact() => startleAt = Time.time;
+        public void ApplyMobilityLoss(float duration) => mobilityLoss = Mathf.Max(mobilityLoss, duration);
+        public void FaceThreat(Vector3 point)
+        {
+            var bearing = Vector3.ProjectOnPlane(point - transform.position, Vector3.up);
+            if (bearing.sqrMagnitude > .0025f) transform.rotation = Quaternion.LookRotation(bearing);
+            Pitch = targetPitch = Mathf.Clamp(Pitch, -12, 18);
+            pitchVelocity = 0;
+        }
         public bool IsSprinting => input != null && input.Sprint.IsPressed() && planarVelocity.sqrMagnitude > 1f;
         public Vector3 PlanarVelocity => planarVelocity;
+        public bool Grounded=>CheckGrounded();
         public Vector3 Eye => transform.position + Vector3.up * 1.64f + transform.forward * .2f;
         public Quaternion ViewRotation => Quaternion.Euler(Pitch, transform.eulerAngles.y, 0);
         public void Initialize(FacilityInput bindings, ControlState state,ActionState actionState=null)
@@ -45,7 +67,7 @@ namespace Hostfall.Player
             {
                 position = transform.position, yaw = transform.eulerAngles.y, pitch = Pitch, targetPitch = targetPitch,
                 planarVelocity = planarVelocity, verticalSpeed = verticalSpeed, thirdPerson = thirdPerson,
-                dashRemaining=dashRemaining,dashDirection=dashDirection,airDashUsed=airDashUsed,
+                dashRemaining=dashRemaining,dashDirection=dashDirection,airDashUsed=airDashUsed,mobilityLoss=mobilityLoss,
                 hasWeapon = weapon != null && weapon.HasWeapon
             };
         }
@@ -54,7 +76,7 @@ namespace Hostfall.Player
             controller.enabled = false; transform.SetPositionAndRotation(state.position, Quaternion.Euler(0, state.yaw, 0)); controller.enabled = true;
             Pitch = state.pitch; targetPitch = state.targetPitch; planarVelocity = state.planarVelocity; verticalSpeed = state.verticalSpeed;
             pitchVelocity = 0; jumpBuffer = 0; coyote = 0;
-            dashRemaining=state.dashRemaining; dashDirection=state.dashDirection; airDashUsed=state.airDashUsed;
+            dashRemaining=state.dashRemaining; dashDirection=state.dashDirection; airDashUsed=state.airDashUsed; mobilityLoss=state.mobilityLoss;
             var weapon = GetComponent<PlayerWeapon>();
             if (weapon != null)
             {
@@ -85,33 +107,45 @@ namespace Hostfall.Player
             dashRemaining = 0;
             airDashUsed = false;
         }
+        private bool CheckGrounded()
+        {
+            if (controller != null && controller.isGrounded) return true;
+            return Physics.SphereCast(transform.position + Vector3.up * 0.45f, 0.28f, Vector3.down, out _, 0.35f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore);
+        }
         public bool TryDash(Vector3 direction)
         {
+            bool grounded = CheckGrounded();
+            if (grounded) airDashUsed = false;
             if(!controls.CanExplore||airDashUsed||!actions.TryDash()) return false;
             dashDirection=Vector3.ProjectOnPlane(direction,Vector3.up).normalized;
             if(dashDirection.sqrMagnitude<.01f) dashDirection=transform.forward;
-            dashRemaining=.18f; airDashUsed=!controller.isGrounded; return true;
+            dashRemaining=.18f; airDashUsed=!grounded; return true;
         }
         public void AddPitchKick(float kick) => targetPitch = Mathf.Clamp(targetPitch + kick, -82, 82);
         private void Update()
         {
             if (input == null || !controls.CanExplore) { planarVelocity = Vector3.zero; jumpBuffer = 0; return; }
-            if (Cursor.lockState != CursorLockMode.Locked || Cursor.visible)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
             float dt = Time.deltaTime;
-            Vector2 look = input.Look.ReadValue<Vector2>() * mouseSensitivity;
+            mobilityLoss = Mathf.Max(0, mobilityLoss - dt);
+            actions?.Tick(dt);
+            Vector2 look = controls.CanLookWithMouse ? input.Look.ReadValue<Vector2>() * mouseSensitivity : Vector2.zero;
             look += input.KeyboardLook.ReadValue<Vector2>() * (90f * dt);
             transform.Rotate(0, look.x * LookSensitivity, 0, Space.World);
             targetPitch = Mathf.Clamp(targetPitch - look.y * LookSensitivity, -82, 82);
+#if UNITY_WEBGL && !UNITY_EDITOR
+            Pitch = targetPitch;
+#else
             Pitch = Mathf.SmoothDamp(Pitch, targetPitch, ref pitchVelocity, 0.025f);
+#endif
             Vector2 move = Vector2.ClampMagnitude(input.Move.ReadValue<Vector2>(), 1);
             float speed = input.Sprint.IsPressed() ? sprintSpeed : walkSpeed;
+            if (mobilityLoss > 0) speed *= .57f;
             Vector3 desired = (transform.forward * move.y + transform.right * move.x) * speed;
-            if(controller.isGrounded) airDashUsed=false;
-            if(input.Dash.WasPressedThisFrame()) DashFeedback?.Invoke(TryDash(desired));
+            bool isGrounded = CheckGrounded();
+            if(isGrounded) airDashUsed=false;
+            bool dashTriggered = (input.Dash != null && input.Dash.WasPressedThisFrame()) ||
+                                 (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.qKey.wasPressedThisFrame);
+            if(dashTriggered) DashFeedback?.Invoke(TryDash(desired));
             if(dashRemaining>0&&dt>0)
             {
                 float active=Mathf.Min(dashRemaining,dt);
@@ -119,7 +153,7 @@ namespace Hostfall.Player
                 dashRemaining=Mathf.Max(0,dashRemaining-dt); planarVelocity=desired;
             }
             planarVelocity = Vector3.MoveTowards(planarVelocity, desired, acceleration * dt);
-            if (controller.isGrounded) { coyote = 0.1f; if (verticalSpeed < 0) verticalSpeed = -2; }
+            if (isGrounded) { coyote = 0.1f; if (verticalSpeed < 0) verticalSpeed = -2; }
             else coyote -= dt;
             jumpBuffer = input.Jump.WasPressedThisFrame() ? 0.12f : jumpBuffer - dt;
             if (jumpBuffer > 0 && coyote > 0) { verticalSpeed = Mathf.Sqrt(jumpHeight * -2 * gravity); jumpBuffer = 0; coyote = 0; }

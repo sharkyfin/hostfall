@@ -1,0 +1,41 @@
+﻿HOSTFALL — NON-DESTRUCTIVE SCENE AUDIT
+Scene: Assets/_HOSTFALL/Content/Scenes/NorthlineFacility.unity
+Date UTC: 2026-11-10T22:39:57.8956090Z
+Objects (including inactive): 4027
+NOTE: Warnings are heuristics. An overlap can be an intentional seam/decal.
+NOTE: Run PlayMode tests and visual inspection before deleting/changing objects.
+
+[WARN 1] CLONE_IN_EDIT_SCENE: NORTHLINE / Facility 04/Shift notebook/office_notepads(Clone)
+[WARN 2] CLONE_IN_EDIT_SCENE: NORTHLINE / Facility 04/Maintenance cart/industrial_storage_cart(Clone)
+[WARN 3] CLONE_IN_EDIT_SCENE: NORTHLINE / Facility 04/Cooling valve/modular_industrial_pipes_01(Clone)
+[WARN 4] STRUCTURAL_NO_COLLIDER: NORTHLINE / Facility 04/Wall telemetry | may rely on a separate proxy collider: review
+[WARN 5] STRUCTURAL_NO_COLLIDER: NORTHLINE / Facility 04/Floor guide | may rely on a separate proxy collider: review
+[WARN 6] STRUCTURAL_NO_COLLIDER: NORTHLINE / Facility 04/Wall telemetry | may rely on a separate proxy collider: review
+[WARN 7] STRUCTURAL_NO_COLLIDER: NORTHLINE / Facility 04/Floor guide | may rely on a separate proxy collider: review
+[WARN 8] DOOR_RENDERER_NO_COLLIDER: NORTHLINE / Facility 04/Sign / СЕТЕВОЙ ШЛЮЗ | check physical blocker on door hierarchy
+[WARN 9] CLONE_IN_EDIT_SCENE: NORTHLINE / Expanded Sectors/Sector 02 - Compute Vault/DATA-01 Master Compute Workstation/DATA-01 Log Notebook/office_notepads(Clone)
+[WARN 10] CLONE_IN_EDIT_SCENE: NORTHLINE / Expanded Sectors/Sector 03 - Energy Center/Sector03 Maintenance Cart/industrial_storage_cart(Clone)
+[WARN 11] DOOR_RENDERER_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 04 - Quantum Nexus/P08 Cargo Switchyard Shunter/Shunting Cargo Cart/Container Door Frame | check physical blocker on door hierarchy
+[WARN 12] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip L 67 | may rely on a separate proxy collider: review
+[WARN 13] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip R 67 | may rely on a separate proxy collider: review
+[WARN 14] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip L 71 | may rely on a separate proxy collider: review
+[WARN 15] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip R 71 | may rely on a separate proxy collider: review
+[WARN 16] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip L 75 | may rely on a separate proxy collider: review
+[WARN 17] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip R 75 | may rely on a separate proxy collider: review
+[WARN 18] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip L 79 | may rely on a separate proxy collider: review
+[WARN 19] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip R 79 | may rely on a separate proxy collider: review
+[WARN 20] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip L 83 | may rely on a separate proxy collider: review
+[WARN 21] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 08 - Neuroarchive/Floor Strip R 83 | may rely on a separate proxy collider: review
+[WARN 22] STRUCTURAL_NO_COLLIDER: NORTHLINE / Expanded Sectors/Sector 09 - Cloud Control/Panoramic Display Wall | may rely on a separate proxy collider: review
+[WARN 23] REPEATED_NAME_TOKEN_DATA-01: count=2
+    NORTHLINE / Expanded Sectors/Sector 02 - Compute Vault/DATA-01 Master Compute Workstation
+    NORTHLINE / Expanded Sectors/Sector 02 - Compute Vault/DATA-01 Master Compute Workstation/DATA-01 Log Notebook
+
+SUMMARY
+Renderers: 3026
+Colliders: 964
+NavMeshAgents: 0
+Warnings (not confirmed defects): 23
+Manual checks still required: z-fighting, transparent sorting,
+doors/path connectivity, physics collision matrix, agent root motion,
+runtime spawners, world-state IDs, performance and PlayMode.

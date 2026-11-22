@@ -24,26 +24,40 @@ namespace Hostfall.Simulation
         };
         public TerminalDirector(FacilitySimulation simulation)
         { world=simulation; states=devices.Select(id=>new RoutineData { device=id }).ToArray(); }
+        public bool KnowsDevice(DeviceId id) => Array.IndexOf(devices, id) >= 0;
         private static int Index(DeviceId id)
         { int index=Array.IndexOf(devices,id); if(index<0) throw new ArgumentException("Unknown terminal"); return index; }
-        public bool IsComplete(DeviceId id)=>states[Index(id)].completed;
+        public bool IsComplete(DeviceId id)
+        {
+            int index = Array.IndexOf(devices, id);
+            return index >= 0 && states[index].completed;
+        }
         public bool CanRun(DeviceId id)
         {
-            int index=Index(id);
-            return world[id].Powered && (index==0||states[index-1].completed);
+            if(world.InteractiveComputers)return false;
+            int index = Array.IndexOf(devices, id);
+            if (index < 0) return false;
+            return world[id].Powered && (index == 0 || states[index - 1].completed);
         }
-        public string Status(DeviceId id)=>IsComplete(id)?"Данные получены":!CanRun(id)?"Сначала доберитесь до предыдущего узла":"Анализ канала";
+        public string Status(DeviceId id)
+        {
+            int index = Array.IndexOf(devices, id);
+            if (index < 0) return "Неизвестный узел";
+            return states[index].completed ? "Данные получены" : !CanRun(id) ? "Сначала доберитесь до предыдущего узла" : "Анализ канала";
+        }
         public bool Begin(DeviceId id)
         {
-            if(!CanRun(id)||IsComplete(id)) return false;
-            var memory=world[id].Terminal; TerminalDisplay.Ensure(world[id]);
-            memory.Host=id; memory.Draft=scripts[Index(id)][states[Index(id)].step].Substring(0,states[Index(id)].typed);
+            int index = Array.IndexOf(devices, id);
+            if (index < 0 || !CanRun(id) || states[index].completed) return false;
+            var memory = world[id].Terminal; TerminalDisplay.Ensure(world[id]);
+            memory.Host = id; memory.Draft = scripts[index][states[index].step].Substring(0, states[index].typed);
             world.NotifyTerminalChanged(); return true;
         }
         public void Tick(DeviceId id,float dt)
         {
-            if(!CanRun(id)||IsComplete(id)||float.IsNaN(dt)||float.IsInfinity(dt)||dt<=0) return;
-            var state=states[Index(id)]; var command=scripts[Index(id)][state.step];
+            int index = Array.IndexOf(devices, id);
+            if (index < 0 || !CanRun(id) || states[index].completed || float.IsNaN(dt) || float.IsInfinity(dt) || dt <= 0) return;
+            var state = states[index]; var command = scripts[index][state.step];
             // Cap a frame's work: a stalled renderer must not skip a whole sequence.
             state.wait+=Math.Min(dt,.1f);
             if(state.typed<command.Length)
@@ -57,7 +71,7 @@ namespace Hostfall.Simulation
             var result=shell.Execute(command);
             if(result.ExitCode!=0) { state.wait=0; return; }
             state.step++; state.typed=0; state.wait=0;
-            if(state.step==scripts[Index(id)].Length)
+            if(state.step==scripts[index].Length)
             {
                 state.completed=true;
                 world.CompleteRoutine(id);

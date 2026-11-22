@@ -158,7 +158,7 @@ namespace Hostfall.World
             transform.position = flatPos;
 
             Vector3 stepDir = (targetPatrol - transform.position).normalized;
-            transform.position += stepDir * (speed * Time.deltaTime);
+            PerformMovement(stepDir * (speed * Time.deltaTime));
 
             if (stepDir.sqrMagnitude > 0.001f)
             {
@@ -174,6 +174,34 @@ namespace Hostfall.World
 
             // 2. Player Perception in Spotlight Cone
             CheckPlayerDetection();
+        }
+
+        private void PerformMovement(Vector3 delta)
+        {
+            float d = delta.magnitude;
+            if (d < 0.0001f) return;
+            Vector3 dir = delta / d;
+            const float radius = 0.4f;
+
+            if (Physics.SphereCast(transform.position, radius, dir, out RaycastHit hit, d + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+            {
+                float allowed = Mathf.Max(0f, hit.distance - 0.04f);
+                transform.position += dir * allowed;
+                Vector3 slide = Vector3.ProjectOnPlane(dir, hit.normal);
+                float rem = d - allowed;
+                if (rem > 0.001f && slide.sqrMagnitude > 0.001f)
+                {
+                    slide.Normalize();
+                    if (!Physics.SphereCast(transform.position, radius, slide, out _, rem + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+                    {
+                        transform.position += slide * rem;
+                    }
+                }
+            }
+            else
+            {
+                transform.position += delta;
+            }
         }
 
         private void CheckPlayerDetection()

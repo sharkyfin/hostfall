@@ -89,7 +89,7 @@ namespace Hostfall.Tests
                 while(controls.Mode!=ControlMode.Terminal&&Time.realtimeSinceStartup<connectionDeadline) yield return null;
                 Assert.That(controls.Mode,Is.EqualTo(ControlMode.Terminal),"Pressing E while targeting the reachable terminal must start connection");
                 Assert.That(bindings.Move.enabled,Is.False);
-                var document=Object.FindAnyObjectByType<UIDocument>(); var view=document.rootVisualElement;
+                var document=Object.FindAnyObjectByType<Hostfall.UI.FacilityUI>().GetComponent<UIDocument>(); var view=document.rootVisualElement;
                 Assert.That(view.Q<TextField>("command"),Is.Null,"No manual command surface may remain");
                 Assert.That(view.Q<Button>("execute"),Is.Null);
                 var simulation=Object.FindAnyObjectByType<FacilityRoot>().Simulation;

@@ -1,5 +1,80 @@
 # Verification — 2026-11-06 / 2026-11-07
 
+## 2026-11-17: непрерывный экран и вступление
+
+77/77 Play Mode, 80/80 Edit Mode, 33/33 Simulation PASS. Native captures: одна
+текстура при подходе/фокусе/выходе, настоящее тело в вступлении, настенные записки.
+644 GUID integrity и API PASS. Release Succeeded / 0 errors; подпись и 12s smoke PASS.
+Save-хеши не изменились. Доставка `HOSTFALL-Awakening.app`, старые пути обновлены.
+См. [QA](AWAKENING_AND_TERMINAL_SYNC_2026-11-16.md) для границ проверки, ранних сбоев
+и измерений; это не прохождение всей кампании.
+
+## 2026-11-15: физические рабочие станции и native text
+
+80/80 Edit Mode, 75/75 Play Mode (74 repository + локальная проверка реального
+backup), 33/33 Simulation PASS. Native capture 3584×2240 / renderScale 0.5082232,
+median 7.852 ms / p95 9.418 ms в шести контрольных видах. Release Succeeded /
+0 errors; подпись, 12s headless smoke, 636 GUID integrity PASS. Сборка
+`HOSTFALL-Workstations.app`, также обновлён путь `HOSTFALL-Robots.app`.
+Инцидент изоляции native auto, исправление и восстановление проверенной копии
+DATA-01 (3 этапа) подробно записаны в [workstation QA](PHYSICAL_WORKSTATIONS_2026-11-15.md).
+
+## 2026-11-14: локальные инструменты и геометрия
+
+**50/50 Play Mode, 63/63 Edit Mode PASS**. Ground boundary scan: 39 338 body-clear
+samples, 0 exposed edges. API compilation и source/meta integrity (527 GUID) PASS.
+macOS x86_64 BuildDesktop Success / exit 0; bundle signature verification PASS.
+Доставлен `apps/unity/Builds/macOS/HOSTFALL-Workbench.app`.
+См. `WORLD_WORKBENCH_2026-11-14.md`: реальные физические маршруты, визуальные снимки,
+настройка Unity/Blender MCP, обнаруженные дефекты и ограничения.
+
+
+## 2026-11-13: карта, исследование и радар
+
+**43/43 Play Mode**, **63/63 Edit Mode PASS**; source/meta integrity **363 GUID PASS**.
+Финальный контроль: `.artifacts/qa/map-playmode-release.xml`,
+`map-editmode-final.xml`; графический прогон `map-playmode-final.xml` также 43/43.
+Пройдено сохранение исследования, разделение этажей, синхронизация геометрии,
+владение вводом карты, отсутствие пересечений HUD на четырёх размерах окна.
+Четыре настоящих UI Toolkit panel render просмотрены в `.artifacts/map-review/`.
+14 ноября: macOS x86_64 standalone BuildDesktop exit 0, доставлен как
+`apps/unity/Builds/macOS/HOSTFALL-Map.app`; проверено совпадение 107 исходных/UI/
+scene/mesh файлов между рабочей и тестовой копией.
+Подробности: `MAP_AND_RADAR_2026-11-13.md`. Это не ручное native прохождение.
+
+## 2026-11-13: вычислительный узел S02
+
+Unity Edit Mode **59/59 PASS**, Play Mode **37/37 PASS**: оба подъёма/спуска, мост, физический подбор и
+установка NL-CART-044, отказ до установки и открытие двух шлюзов после DATA-01.
+Новые тесты используют CharacterController.Move и проверки видимости взаимодействий.
+Это не ручное прохождение и не оценка боя. См. `COMPUTE_VAULT_2026-11-13.md`.
+Проверка целостности: 357 GUID, PASS. Рабочие исходники, сцена и ramp asset совпадают
+с проверенной изолированной копией проекта побайтово.
+macOS x86_64 BuildDesktop: exit 0; обновлённый bundle `HOSTFALL-Sector02.app` в
+`apps/unity/Builds/macOS`. Запущенная старая копия не заменялась.
+
+## 2026-11-13: режим окна при загрузке
+
+Устранено повторное применение сохранённого fullscreen из GamePreferences.Apply.
+Именно этот путь запускался при создании сцены и при изменении других настроек.
+Добавлен регрессионный тест: внешнее изменение режима окна, пересоздание настроек,
+изменения звука/мыши/языка/VSync и сброс не вызывают смену режима. Явное переключение
+срабатывает один раз. Для проверки теста используется подставной IGameWindow;
+нативная анимация macOS этим тестом не проверяется.
+
+Unity 6000.6.8f1 Edit Mode: 59/59 PASS (`.artifacts/qa/window-editmode.xml`).
+Тесты выполнены в отдельной копии `.artifacts/window-mode-check`, поскольку исходный
+проект открыт в пользовательском редакторе. API compilation и проверка 353 GUID — PASS.
+macOS standalone собран в этой копии, exit 0. Исправленная версия скопирована в
+`apps/unity/Builds/macOS/HOSTFALL-WindowFix.app`; уже запущенное приложение не заменялось.
+
+## 2026-11-13: связность карты
+
+Unity Play Mode 34/34 PASS; сканирование пола и объёма персонажа связывает со спавном
+17 контрольных точек всех секторов. Исправлены боковые шлюзы, повёрнутые стены,
+перила, сплошные перегородки и отсутствующие соединительные участки пола.
+Детали и границы доказательств: [MAP_REPAIR_2026-11-13.md](MAP_REPAIR_2026-11-13.md).
+
 ## Executed
 
 | Проверка | Результат |
@@ -410,3 +485,46 @@ Web/Windows/Linux не пересобирались. Это новая рабо�
 Площадка эвакуации на Z=199 находилась за границей Z=190: игрока оттуда возвращало, а запись позиции не проходила валидацию. Граница расширена до Z=210; Play Mode проверяет позицию площадки, Edit Mode — сохранение и загрузку позиции. Unity Play Mode: 30/30, Edit Mode: 56/56; desktop-сборка, API compilation и проверка целостности прошли. При аудите выяснилось, что текущий формат не сохраняет прочность игрока и большую часть состояния новых секторов; полноценное сохранение мира не подтверждено.
 
 Прочность корпуса и оставшаяся неуязвимость сохраняются. Проверены запись повреждённого персонажа и загрузка (65 из 100), загрузка погибшего персонажа с экраном перезапуска, а также отсутствие поля в старом JSON: Unity создаёт пустой объект, поэтому используется явный признак наличия состояния. Edit Mode 57/57, Play Mode 32/32. Остальные объекты новых секторов не входят в это исправление.
+
+
+2026-11-14 combat workshop: 56/56 Unity Play Mode, 67/67 Edit Mode, 33/33 Simulation;
+API and 555 GUID integrity PASS. Native x86_64 build Succeeded (0 errors), signature
+verified, bounded headless standalone smoke exited 0. Details and explicit limits:
+[COMBAT_WORKSHOP_2026-11-14.md](COMBAT_WORKSHOP_2026-11-14.md).
+
+
+2026-11-14 Weapon Atelier: 59/59 Play, 67/67 Edit, API and 572 GUID integrity PASS;
+Arsenal x86_64 build Succeeded / 0 errors, signature exit 0, controlled native smoke
+exit 0. Studio/FPS/reload captures reviewed. See WEAPON_ATELIER_2026-11-14.md.
+
+
+2026-11-15 collision audit: 63/63 Play Mode, 67/67 Edit Mode, API compilation and
+576-GUID integrity PASS. Full-range ground scan: 40,922 body-clear samples / zero
+exposed edges; 18 open doors / 36 tested directions. Confirmed/fixed 15 excessive
+proxies, missing S10 glass collision and two open shoulders. See
+`COLLISION_AUDIT_2026-11-15.md` for baseline failures, actual evidence and limits.
+
+Collision review native bundle `HOSTFALL-MapFix.app`: Succeeded / 0 errors, signature
+PASS, 12s headless smoke / controlled exit 0 / no script or load errors.
+
+
+## Motion and single carried weapon — 2026-11-15
+
+69/69 Play Mode, 69/69 Edit Mode, 33/33 simulation PASS. Blender export and real
+Unity locomotion/body/grip captures checked. File-backed save/load preserves thrown
+weapons/ammo; shell loading, thermal lockout and saved charge covered. Static-map
+regression fixed and verified. API / 602 GUID integrity PASS; native macOS x86_64
+build Succeeded / 0 errors; signature PASS; 12s headless smoke, controlled exit 0.
+See `MOTION_COMBAT_2026-11-15.md` for CPU/GC measurements and validation limits.
+
+
+## 2026-11-15 — robot armour and bounded work (ADR 0013)
+
+Native release: `apps/unity/Builds/macOS/HOSTFALL-Robots.app`. 72/72 Play, 69/69 Edit,
+33/33 simulation, API and 614 GUID integrity PASS; signature and 12s native headless
+smoke PASS. Automatic terminals and world/save contracts remain unchanged.
+13 patrol bodies received surface-mounted armour; fixed guardian geometry is grouped
+without removing damage components. Shared A* budget and non-alloc queries replace
+simultaneous synchronous searches. GPU candidates were tested and rejected; production
+uses conventional URP with original quality settings. Native engine-interval comparisons,
+failed experiments and scope limits: `docs/qa/ROBOT_ARMOR_PERFORMANCE_2026-11-15.md`.

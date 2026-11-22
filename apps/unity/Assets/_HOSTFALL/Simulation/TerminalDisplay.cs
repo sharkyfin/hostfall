@@ -29,9 +29,11 @@ namespace Hostfall.Simulation
             }
         }
         public string Tail(int width,int rows)
+            =>TailText(Transcript,width,rows);
+        public static string TailText(string transcript,int width,int rows)
         {
             var lines=new List<string>();
-            foreach(string source in Transcript.Replace("\r","").Split('\n'))
+            foreach(string source in transcript.Replace("\r","").Split('\n'))
             {
                 string line=source;
                 while(line.Length>width)

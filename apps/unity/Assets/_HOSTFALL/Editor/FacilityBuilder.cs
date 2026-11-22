@@ -127,15 +127,17 @@ namespace Hostfall.Editor
             PlayerSettings.companyName = "NORTHLINE"; PlayerSettings.productName = "HOSTFALL";
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone, "com.northline.hostfall");
             PlayerSettings.colorSpace = ColorSpace.Linear; PlayerSettings.runInBackground = false;
-            PlayerSettings.defaultScreenWidth = 1600; PlayerSettings.defaultScreenHeight = 900;
+            PlayerSettings.defaultScreenWidth = 1920; PlayerSettings.defaultScreenHeight = 1080;
+            PlayerSettings.defaultIsNativeResolution = true;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
+            PlayerSettings.resizableWindow = true;
             var settings = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset")[0]);
             settings.FindProperty("activeInputHandler").intValue = 1; settings.ApplyModifiedPropertiesWithoutUndo();
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.WebGL, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.WebGL, new[] { GraphicsDeviceType.WebGPU, GraphicsDeviceType.OpenGLES3 });
             var renderer = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(Content + "/Settings/FacilityRenderer.asset");
             if (renderer == null) { renderer = ScriptableObject.CreateInstance<UniversalRendererData>(); AssetDatabase.CreateAsset(renderer, Content + "/Settings/FacilityRenderer.asset"); }
-            renderer.renderingMode = RenderingMode.Forward;
+            renderer.renderingMode = RenderingMode.ForwardPlus;
             // Old template debug resources can retain GUIDs removed in newer URP releases.
             var rendererSettings = new SerializedObject(renderer);
             var property = rendererSettings.GetIterator();
@@ -405,7 +407,7 @@ namespace Hostfall.Editor
                 Box("Warning band " + side, new Vector3(0, 0.6f, side * 0.082f), new Vector3(2.1f, 0.055f, 0.015f), amber, leaf, false);
             }
             Box("Door control / both sides", new Vector3(-1.06f, 1.2f, 0), new Vector3(.18f, .35f, .45f), amber, group);
-            var door = group.gameObject.AddComponent<FacilityDoor>(); door.Configure(leaf);
+            var door = group.gameObject.AddComponent<FacilityDoor>(); door.Configure(leaf, id: "door.corridor.server");
             // Whole hierarchy is dynamic: the leaf retains its own solid collider.
             return door;
         }

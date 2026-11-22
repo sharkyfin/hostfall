@@ -40,13 +40,23 @@ namespace Hostfall.World
         private static AudioClip clipWindup;
         private static AudioClip clipShockArc;
         private static AudioClip clipHurt;
-        private static bool audioGenerated;
 
         public string DamageableId => sentryId;
-        public bool IsDestroyed => isDestroyed;
-        public float Health => currentHealth;
-        public bool IsStunned => stunTimer > 0f;
+        public bool IsDestroyed => GetComponent<RobotCombatController>()?.Model?.IsDead ?? isDestroyed;
+        public float Health => GetComponent<RobotCombatController>()?.Model?.Health ?? currentHealth;
+        public bool IsStunned => GetComponent<RobotCombatController>()?.Model!=null ? GetComponent<RobotCombatController>().Model.Data.stun>0 : stunTimer>0;
         public bool IsAimingAtPlayer => isAimingAtPlayer;
+
+        internal void PlayGuardianCue(bool impact)
+        {
+            var clip = impact ? clipShockArc : clipWindup;
+            if (clip == null)
+            {
+                EnsureAudio();
+                clip = impact ? clipShockArc : clipWindup;
+            }
+            if (clip != null) audioSource.PlayOneShot(clip, impact ? .9f : .75f);
+        }
 
         public void Configure(Light headLight, Transform turret, Transform muzzle, Vector3 pA, Vector3 pB, string id = "sentry-crawler-e06")
         {
@@ -84,14 +94,10 @@ namespace Hostfall.World
                 audioSource.maxDistance = 22.0f;
             }
 
-            if (!audioGenerated)
-            {
-                clipEngine = CreateEngineSound();
-                clipWindup = CreateWindupSound();
-                clipShockArc = CreateShockArcSound();
-                clipHurt = CreateHurtSound();
-                audioGenerated = true;
-            }
+            if (clipEngine == null) clipEngine = CreateEngineSound();
+            if (clipWindup == null) clipWindup = CreateWindupSound();
+            if (clipShockArc == null) clipShockArc = CreateShockArcSound();
+            if (clipHurt == null) clipHurt = CreateHurtSound();
 
             if (audioSource != null && clipEngine != null && !audioSource.isPlaying && !isDestroyed)
             {
@@ -104,6 +110,7 @@ namespace Hostfall.World
 
         private void Update()
         {
+            if(GetComponent<CrawlerMinibossController>()!=null)return;
             if (isDestroyed) return;
 
             // Handle Stun & Stagger Timers
@@ -254,12 +261,46 @@ namespace Hostfall.World
             {
                 Quaternion targetRot = Quaternion.LookRotation(toTarget.normalized);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, Time.deltaTime * 65f);
-                transform.position += transform.forward * (moveSpeed * Time.deltaTime);
+                PerformMovement(transform.forward * (moveSpeed * Time.deltaTime));
+            }
+        }
+
+        private void PerformMovement(Vector3 delta)
+        {
+            float d = delta.magnitude;
+            if (d < 0.0001f) return;
+            Vector3 dir = delta / d;
+            const float radius = 0.55f;
+            const float height = 1.7f;
+            Vector3 bot = transform.position + Vector3.up * radius;
+            Vector3 top = transform.position + Vector3.up * Mathf.Max(radius, height - radius);
+
+            if (Physics.CapsuleCast(bot, top, radius, dir, out RaycastHit hit, d + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+            {
+                float allowed = Mathf.Max(0f, hit.distance - 0.04f);
+                transform.position += dir * allowed;
+                Vector3 slide = Vector3.ProjectOnPlane(dir, hit.normal);
+                slide.y = 0;
+                float rem = d - allowed;
+                if (rem > 0.001f && slide.sqrMagnitude > 0.001f)
+                {
+                    slide.Normalize();
+                    if (!Physics.CapsuleCast(bot + dir * allowed, top + dir * allowed, radius, slide, out _, rem + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+                    {
+                        transform.position += slide * rem;
+                    }
+                }
+            }
+            else
+            {
+                transform.position += delta;
             }
         }
 
         public void TakeDamage(float amount)
         {
+            var combat=GetComponent<RobotCombatController>();
+            if(combat?.Model!=null&&!combat.CompletingDeath){combat.Hit(amount,RobotHitRegion.Hull,transform.position);return;}
             if (isDestroyed) return;
 
             currentHealth -= amount;
@@ -281,6 +322,8 @@ namespace Hostfall.World
 
         public void ApplyEmpStun(float duration = 7.0f)
         {
+            var combat=GetComponent<RobotCombatController>();
+            if(combat?.Model!=null)combat.Model.Data.stun=duration;
             if (isDestroyed) return;
             stunTimer = duration;
             staggerTimer = 0.6f;

@@ -72,7 +72,7 @@ project('Unity.Splines', (splines / 'package/Runtime').rglob('*.cs'), defines='U
 project('Unity.Cinemachine', (packages / 'com.unity.cinemachine/Runtime').rglob('*.cs'), ['Unity.Splines'],
         'CINEMACHINE_PHYSICS;CINEMACHINE_SPLINES_2_4;CINEMACHINE_URP;CINEMACHINE_UNITY_INPUTSYSTEM;CINEMACHINE_UIELEMENTS;CINEMACHINE_UNITY_6000_0_11F1_OR_NEWER')
 source = ROOT / 'apps/unity/Assets/_HOSTFALL'
-project('Hostfall.Simulation', (source / 'Simulation').glob('*.cs'), language='9.0')
+project('Hostfall.Simulation', (source / 'Simulation').rglob('*.cs'), language='9.0')
 files = [path for path in source.rglob('*.cs') if not {'Editor', 'Tests', 'Simulation'}.intersection(path.relative_to(source).parts)]
 project('Hostfall.Runtime', files, ['Hostfall.Simulation', 'Unity.Cinemachine'], language='9.0')
 project('Hostfall.Editor', (source / 'Editor').glob('*.cs'), ['Hostfall.Runtime'], 'UNITY_EDITOR;UNITY_EDITOR_OSX', language='9.0')

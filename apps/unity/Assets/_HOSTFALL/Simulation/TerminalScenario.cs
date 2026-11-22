@@ -103,7 +103,7 @@ namespace Hostfall.Simulation
         private static void Register(TerminalScenario scenario)
         {
             Scenarios[scenario.ScenarioId] = scenario;
-            if ((uint)scenario.DeviceId != 0)
+            if ((uint)scenario.DeviceId != 0 && !scenario.ScenarioId.EndsWith("_unmet", StringComparison.Ordinal))
             {
                 Scenarios[scenario.DeviceId.ToString().ToLowerInvariant()] = scenario;
             }
@@ -252,9 +252,9 @@ namespace Hostfall.Simulation
                 new TerminalCommandStep("nmap -sS -T4 -p 22,8080,9100 10.17.0.101",
                     "Starting Nmap 7.93 ( https://nmap.org ) at 2026-11-09 03:22 UTC\nNmap scan report for data01.infra.northline (10.17.0.101)\nPORT     STATE SERVICE\n22/tcp   open  ssh (OpenSSH 8.7)\n8080/tcp open  http-proxy (Northline Vault-API v1.2)\n9100/tcp open  jetdirect (Node-Exporter Prometheus)"),
                 new TerminalCommandStep("vault-extract --keys --service armory-access",
-                    "[VAULT-EXTRACT v3.1] Querying physical block drive /dev/nvme0n1...\n[FAIL] Media unreadable: DRIVE CARTRIDGE SLOT EMPTY.\n[CRITICAL] Physical block manifest NL-CART-044 REQUIRED to decrypt keyring.\n[ACTION REQUIRED] Retrieve cartridge NL-CART-044 from Mezzanine Observation Desk (High Gantry) and insert into drive slot.")
+                    "[VAULT-EXTRACT v3.1] Проверка считывателя...\n[FAIL] Картридж не установлен. Шлюзы остаются заблокированы.\nНоситель NL-CART-044 хранится на столе наблюдения наверху.\nПодъём — по лестнице справа от входа в вычислительный узел.\nПосле подъёма пройдите по галерее до освещённого стола.\nУстановите картридж в считыватель слева от экрана DATA-01.")
             },
-            "Требуется картридж данных [NL-CART-044] для расшифровки ключей",
+            "Доступ закрыт · нужен картридж с верхней площадки",
             null
         );
 
@@ -270,7 +270,7 @@ namespace Hostfall.Simulation
 
         // T06-CARGO: CARGO-WIN (Windows Server 2025 / PowerShell 7.5)
         private static TerminalScenario BuildT06CargoWindows() => new(
-            "t06_cargo", DeviceId.Core01, TerminalOsFamily.WindowsPowerShell, "CARGO-NODE-01", "10.17.0.401", "Logistics",
+            "t06_cargo", DeviceId.Cargo01, TerminalOsFamily.WindowsPowerShell, "CARGO-NODE-01", "10.17.0.401", "Logistics",
             new[] {
                 new TerminalCommandStep("Get-Service -Name \"NorthlineCargo*\" | Select-Object Status, Name, DisplayName",
                     "Status   Name                     DisplayName\n------   ----                     -----------\nStopped  NorthlineCargoDispatch   Northline Freight Automated Switch\nRunning  NorthlineCargoTelemetry  Northline Container Waybill Sync"),
@@ -285,7 +285,7 @@ namespace Hostfall.Simulation
 
         // T04-ROBO: RBT-01 (ROS 2 Humble / Ubuntu 22.04 LTS / bash 5.2)
         private static TerminalScenario BuildT04RoboLinux() => new(
-            "t04_robo", DeviceId.Core01, TerminalOsFamily.LinuxBash, "rbt01-factory", "10.17.0.501", "~/ros2_ws",
+            "t04_robo", DeviceId.Rbt01, TerminalOsFamily.LinuxBash, "rbt01-factory", "10.17.0.501", "~/ros2_ws",
             new[] {
                 new TerminalCommandStep("ros2 node list",
                     "/chassis_telemetry_node\n/gantry_assembly_arm_01\n/gantry_assembly_arm_02\n/sentry_target_acquisition\n/super_arbitration_bridge"),
@@ -300,7 +300,7 @@ namespace Hostfall.Simulation
 
         // T05-SEC: SEC-07 (Windows Server 2025 / PowerShell 7.5)
         private static TerminalScenario BuildT05SecWindows() => new(
-            "t05_sec", DeviceId.Core01, TerminalOsFamily.WindowsPowerShell, "SEC-07", "10.17.0.27", "Security",
+            "t05_sec", DeviceId.Sec07, TerminalOsFamily.WindowsPowerShell, "SEC-07", "10.17.0.27", "Security",
             new[] {
                 new TerminalCommandStep("$env:COMPUTERNAME",
                     "SEC-07"),
@@ -321,7 +321,7 @@ namespace Hostfall.Simulation
 
         // T06-NEURO: NEURO-MAC (macOS 26 / zsh)
         private static TerminalScenario BuildT06NeuroMac() => new(
-            "t06_neuro", DeviceId.Ws07, TerminalOsFamily.MacOsZsh, "neuro-mac", "10.17.0.64", "~/Recovery",
+            "t06_neuro", DeviceId.Neuro01, TerminalOsFamily.MacOsZsh, "neuro-mac", "10.17.0.64", "~/Recovery",
             new[] {
                 new TerminalCommandStep("sw_vers",
                     "ProductName:            macOS\nProductVersion:         26.0\nBuildVersion:           25A354"),
@@ -340,7 +340,7 @@ namespace Hostfall.Simulation
 
         // T10-CLOUD: CLOUD-09 (Linux / systemd quorum consensus daemon)
         private static TerminalScenario BuildT10CloudLinux() => new(
-            "t10_cloud", DeviceId.Core01, TerminalOsFamily.LinuxBash, "cloud-09", "10.17.0.99", "/opt/northline/consensus",
+            "t10_cloud", DeviceId.Cloud09, TerminalOsFamily.LinuxBash, "cloud-09", "10.17.0.99", "/opt/northline/consensus",
             new[] {
                 new TerminalCommandStep("systemctl status quorumd.service",
                     "● quorumd.service - Northline Tripartite Quorum Consensus Daemon\n   Loaded: loaded (/etc/systemd/system/quorumd.service; enabled)\n   Active: active (running) since Fri 2031-10-18 03:22:10 UTC\n   Main PID: 2194 (quorumd)\n   Tasks: 4 (limit: 4096)\n   Memory: 18.4M"),
@@ -357,7 +357,7 @@ namespace Hostfall.Simulation
 
         // T12-SUPER: SUPER-CORE (QNX Neutrino RTOS 8.0 Super Core Authority Enclave)
         private static TerminalScenario BuildT12SuperCore() => new(
-            "t12_super", DeviceId.Core01, TerminalOsFamily.QnxNeutrino, "super-core", "10.17.0.1", "/sys/kernel/authority",
+            "t12_super", DeviceId.Super10, TerminalOsFamily.QnxNeutrino, "super-core", "10.17.0.1", "/sys/kernel/authority",
             new[] {
                 new TerminalCommandStep("superctl query-health",
                     "SUPER-CORE KERNEL v4.2 [ISOLATED HARDWARE ENCLAVE]\nATLAS-0 Platform Status: OFFLINE (Hydraulic actuators halted)\nSubsystem Power: DRAINED\nNeural Replication Bridge: SUSPENDED\nWaiting for Root Operator revocation token..."),

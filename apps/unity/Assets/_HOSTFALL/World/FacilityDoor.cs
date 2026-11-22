@@ -6,10 +6,11 @@ using UnityEngine;
 
 namespace Hostfall.World
 {
-    public enum DoorAccessCondition { ServerAccess, CoreTerminalComplete, AlwaysUnlocked, ManualUnlockOnly }
+    public enum DoorAccessCondition { ServerAccess, CoreTerminalComplete, AlwaysUnlocked, ManualUnlockOnly, WorkstationTerminalComplete }
 
     public sealed class FacilityDoor : MonoBehaviour, IInteractable
     {
+        [SerializeField] private string doorId = "";
         [SerializeField] private Transform leaf;
         [SerializeField, Min(0.1f)] private float travel = 2.5f;
         [SerializeField, Min(0.1f)] private float speed = 1.6f;
@@ -25,15 +26,28 @@ namespace Hostfall.World
         private bool opened;
         private bool manuallyUnlocked;
         private bool wasOpened;
+        private bool? computerPower;
+        public void SetComputerPower(bool powered)
+        {
+            if(computerPower==powered)return;computerPower=powered;
+            if(powered&&!opened){opened=true;PlayDoorSound();}
+            else if(!powered&&opened&&!Occupied){opened=false;PlayDoorSound();}
+        }
+
+        public string DoorId { get => !string.IsNullOrEmpty(doorId) ? doorId : name; set => doorId = value; }
+        public bool IsManuallyUnlocked => manuallyUnlocked;
+        public bool FullyOpen => opened && leaf != null && Vector3.Distance(leaf.localPosition, closed) >= travel - .01f;
+        public void UnlockForComputer() { manuallyUnlocked = true; OnSimulationChanged(); }
 
         private AudioSource audioSource;
         private static AudioClip clipDoorSlide;
         private static bool audioGenerated;
 
-        public bool IsUnlocked => condition == DoorAccessCondition.AlwaysUnlocked || manuallyUnlocked || (simulation != null && (
+        public bool IsUnlocked => computerPower ?? (condition == DoorAccessCondition.AlwaysUnlocked || manuallyUnlocked || (simulation != null && (
             (condition == DoorAccessCondition.ServerAccess && simulation.ServerAccess) ||
+            (condition == DoorAccessCondition.WorkstationTerminalComplete && simulation.Terminals.IsComplete(DeviceId.Ws07)) ||
             (condition == DoorAccessCondition.CoreTerminalComplete && simulation.Terminals.IsComplete(DeviceId.Core01))
-        ));
+        )));
 
         public string Prompt => !IsUnlocked ? lockedPromptText : opened ? closePromptText : openPromptText;
 
@@ -89,7 +103,7 @@ namespace Hostfall.World
                 audioSource.PlayOneShot(clipDoorSlide, 0.85f);
         }
 
-        public void Configure(Transform panel, DoorAccessCondition access = DoorAccessCondition.ServerAccess, string lockedMsg = null, string openMsg = null, string closeMsg = null, bool autoOpen = false, Vector3? direction = null, float? customTravel = null, float? customSpeed = null)
+        public void Configure(Transform panel, DoorAccessCondition access = DoorAccessCondition.ServerAccess, string lockedMsg = null, string openMsg = null, string closeMsg = null, bool autoOpen = false, Vector3? direction = null, float? customTravel = null, float? customSpeed = null, string id = null)
         {
             leaf = panel;
             closed = panel != null ? panel.localPosition : Vector3.zero;
@@ -101,6 +115,7 @@ namespace Hostfall.World
             if (direction.HasValue) slideDirection = direction.Value;
             if (customTravel.HasValue) travel = customTravel.Value;
             if (customSpeed.HasValue) speed = customSpeed.Value;
+            if (!string.IsNullOrEmpty(id)) doorId = id;
             EnsureAudio();
         }
 
@@ -135,11 +150,28 @@ namespace Hostfall.World
 
         public DoorStateData Capture() => new() { opened = opened, offset = Mathf.Clamp(leaf != null ? (leaf.localPosition - closed).magnitude : 0, 0, travel) };
 
+        public DoorStateEntryData CaptureEntry() => new()
+        {
+            id = DoorId,
+            opened = opened,
+            offset = Mathf.Clamp(leaf != null ? (leaf.localPosition - closed).magnitude : 0, 0, travel),
+            unlocked = IsUnlocked
+        };
+
         public void Restore(DoorStateData state)
         {
             opened = state.opened;
             wasOpened = opened;
             if (opened) manuallyUnlocked = true;
+            if (leaf != null) leaf.localPosition = closed + slideDirection.normalized * state.offset;
+        }
+
+        public void RestoreEntry(DoorStateEntryData state)
+        {
+            if (state == null) return;
+            opened = state.opened;
+            wasOpened = opened;
+            if (state.unlocked || opened) manuallyUnlocked = true;
             if (leaf != null) leaf.localPosition = closed + slideDirection.normalized * state.offset;
         }
 
@@ -162,6 +194,7 @@ namespace Hostfall.World
 
         private void Update()
         {
+            if(computerPower==false&&opened&&!Occupied){opened=false;PlayDoorSound();}
             if (autoOpenOnUnlock && !opened && IsUnlocked)
             {
                 opened = true;

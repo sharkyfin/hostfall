@@ -252,7 +252,7 @@ namespace Hostfall.World
                 {
                     Quaternion rot = Quaternion.LookRotation(toTarget.normalized);
                     transform.rotation = Quaternion.RotateTowards(transform.rotation, rot, 90f * Time.deltaTime);
-                    transform.position += transform.forward * (sprintSpeed * Time.deltaTime);
+                    PerformMovement(transform.forward * (sprintSpeed * Time.deltaTime));
                 }
                 else
                 {
@@ -289,12 +289,44 @@ namespace Hostfall.World
                 {
                     Quaternion walkRot = Quaternion.LookRotation(step.normalized);
                     transform.rotation = Quaternion.RotateTowards(transform.rotation, walkRot, 60f * Time.deltaTime);
-                    transform.position += transform.forward * (patrolSpeed * Time.deltaTime);
+                    PerformMovement(transform.forward * (patrolSpeed * Time.deltaTime));
                 }
                 else
                 {
                     patrolTarget = 1 - patrolTarget;
                 }
+            }
+        }
+
+        private void PerformMovement(Vector3 delta)
+        {
+            float d = delta.magnitude;
+            if (d < 0.0001f) return;
+            Vector3 dir = delta / d;
+            const float radius = 0.45f;
+            const float height = 1.1f;
+            Vector3 bot = transform.position + Vector3.up * radius;
+            Vector3 top = transform.position + Vector3.up * Mathf.Max(radius, height - radius);
+
+            if (Physics.CapsuleCast(bot, top, radius, dir, out RaycastHit hit, d + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+            {
+                float allowed = Mathf.Max(0f, hit.distance - 0.04f);
+                transform.position += dir * allowed;
+                Vector3 slide = Vector3.ProjectOnPlane(dir, hit.normal);
+                slide.y = 0;
+                float rem = d - allowed;
+                if (rem > 0.001f && slide.sqrMagnitude > 0.001f)
+                {
+                    slide.Normalize();
+                    if (!Physics.CapsuleCast(bot + dir * allowed, top + dir * allowed, radius, slide, out _, rem + 0.04f, CollisionLayers.WorldMask, QueryTriggerInteraction.Ignore))
+                    {
+                        transform.position += slide * rem;
+                    }
+                }
+            }
+            else
+            {
+                transform.position += delta;
             }
         }
 

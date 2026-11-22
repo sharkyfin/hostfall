@@ -23,11 +23,17 @@ namespace Hostfall.Persistence
     {
         private readonly string directory;
         private readonly Func<GameSaveData,bool> validate;
+        private readonly int version;
         private readonly SaveSlot[] slots = {
             new("auto","Автосохранение","world-v2.json"), new("quick","Быстрое сохранение","quick-v2.json"),
             new("manual1","Слот 1","manual-1-v2.json"), new("manual2","Слот 2","manual-2-v2.json"), new("manual3","Слот 3","manual-3-v2.json")
         };
-        public SaveLibrary(string path,Func<GameSaveData,bool> domainValidation=null) { directory=path; validate=domainValidation; }
+        public SaveLibrary(string path,Func<GameSaveData,bool> domainValidation=null,bool modern=false)
+        {
+            directory=path; validate=domainValidation; version=modern?3:2;
+            if(modern) slots=new[] { new SaveSlot("auto","Автосохранение","world-v3.json"),new SaveSlot("quick","Быстрое сохранение","quick-v3.json"),
+                new SaveSlot("manual1","Слот 1","manual-1-v3.json"),new SaveSlot("manual2","Слот 2","manual-2-v3.json"),new SaveSlot("manual3","Слот 3","manual-3-v3.json") };
+        }
         public IReadOnlyList<SaveSlot> Slots(bool inspectFiles=true)
         {
             if(!inspectFiles) return slots;
@@ -38,7 +44,7 @@ namespace Hostfall.Persistence
                 if(slot.Available)
                 {
                     slot.SavedAt=File.GetLastWriteTimeUtc(store.FilePath+(error.Length>0?".bak":"")).ToLocalTime();
-                    slot.Objective=FacilitySimulation.Restore(data.simulation,MissionDefinition.ActionRoute).Objective;
+                    slot.Objective=FacilitySimulation.Restore(data.simulation).Objective;
                     slot.Language=FieldSession.NormalizeLanguage(data.field.programmingLanguage)=="cpp"?"C++":"Python";
                 }
             }
@@ -46,7 +52,7 @@ namespace Hostfall.Persistence
         }
         public WorldSaveStore Store(string id)
         {
-            foreach(var slot in slots) if(slot.Id==id) return new WorldSaveStore(directory,slot.File);
+            foreach(var slot in slots) if(slot.Id==id) return new WorldSaveStore(directory,slot.File,version);
             throw new ArgumentException("Unknown save slot");
         }
         public bool Read(string id,out GameSaveData data,out string error) => Store(id).TryLoad(out data,out error,validate);
